@@ -330,6 +330,7 @@ def classify_mission(graded: pl.DataFrame, text: str, company: str | None = None
         "run_id": _run_id(text + str(weights)), "mission": text, "company": company,
         "archetype": plan["archetype"], "label": plan["label"],
         "reasoning_mode": plan.get("reasoning_mode", "deterministic"),
+        "ranking": plan.get("ranking", "headroom"),
         "interpretation": plan["interpretation"], "weights": weights, "why": plan["why"],
         "adjust_reasons": adjust_reasons or {}, "guard": guard,
         "target_tiers": plan["target_tiers"], "target_note": plan["target_note"],

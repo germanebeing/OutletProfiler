@@ -21,11 +21,16 @@ from . import identity
 
 _CONF = {"high": 0.9, "low": 0.6, "none": 0.3}
 MONTHS_IN_WINDOW = 3  # the pull window (see engine ingestion)
-# plays that capture unrealised headroom (target the low-realisation tiers) size
-# the opportunity as throughput × gap; plays that place a line at already-proven
-# outlets (target T1/T2, gap≈0) size it as an incremental uplift instead.
-_GAP_PLAYS = {"volume_scheme", "frequency", "distribution", "reactivation", "balanced"}
 _LAUNCH_UPLIFT = 0.15  # assumed incremental share for launch/retention at proven outlets
+
+
+def _is_gap_play(ranking: str | None) -> bool:
+    """Gap-closing (headroom / lapsing) plays size the opportunity as throughput ×
+    unrealised fraction (1-RI); 'best'-ranked plays (launch to / defend proven
+    outlets, gap≈0) size it as an incremental uplift instead. Driven off the plan's
+    RANKING, not the archetype name, so the LLM lens's 'custom' archetype is sized
+    correctly too."""
+    return ranking != "best"
 
 
 def _conf(row: dict) -> float:
@@ -36,16 +41,13 @@ def _annual_throughput(row: dict) -> float:
     return ((row.get("line_value") or 0.0) / MONTHS_IN_WINDOW) * 12.0
 
 
-def _annual_opportunity(row: dict, archetype: str) -> float:
-    """₹/yr opportunity, play-aware. Gap-closing plays: throughput × unrealised
-    fraction (1-RI). Launch/retention plays: throughput × incremental uplift
-    (proven outlets have ~no gap, so the value is the new/defended line)."""
+def _annual_opportunity(row: dict, gap_play: bool) -> float:
+    """₹/yr opportunity. Gap-closing plays: throughput × unrealised fraction (1-RI).
+    Launch/retention plays: throughput × incremental uplift (proven outlets have
+    ~no gap, so the value is the new/defended line)."""
     thr = _annual_throughput(row)
     ri = row.get("RI_w")
-    if archetype in _GAP_PLAYS:
-        basis = max(0.0, 1.0 - ri) if ri is not None else 0.0
-    else:
-        basis = _LAUNCH_UPLIFT
+    basis = (max(0.0, 1.0 - ri) if ri is not None else 0.0) if gap_play else _LAUNCH_UPLIFT
     return round(thr * basis, 0)
 
 
@@ -56,7 +58,7 @@ def _obs(run_id: str, tenant_id: str, signal_id: str | None, row: dict,
         run_id=run_id, signal_id=signal_id,
         entity_refs=EntityRefs(tenant_id=tenant_id, outlet_id=str(row["outletid"]),
                                region=row.get("regionname")),
-        confidence=_conf(row), reasoning_mode="deterministic",
+        confidence=_conf(row), reasoning_mode="deterministic",  # raw measured levers
         kind="outlet_opportunity_grade",
         value={
             "tier": row.get("tier_w"), "RI": row.get("RI_w"), "peer": row.get("peer"),
@@ -78,10 +80,10 @@ def _obs(run_id: str, tenant_id: str, signal_id: str | None, row: dict,
 
 
 def _opp(run_id: str, tenant_id: str, signal_id: str | None, row: dict,
-         label: str, horizon_days: int, safe: bool, archetype: str) -> Opportunity:
-    inr = _annual_opportunity(row, archetype)
+         label: str, horizon_days: int, safe: bool, gap_play: bool,
+         reasoning_mode: str) -> Opportunity:
+    inr = _annual_opportunity(row, gap_play)
     ri = row.get("RI_w") or 0.0
-    gap_play = archetype in _GAP_PLAYS
     basis_txt = ("unrealised headroom to close" if gap_play
                  else "incremental from placing the line at this proven outlet")
     lvl = "high" if safe else "low"
@@ -90,7 +92,7 @@ def _opp(run_id: str, tenant_id: str, signal_id: str | None, row: dict,
         run_id=run_id, signal_id=signal_id,
         entity_refs=EntityRefs(tenant_id=tenant_id, outlet_id=str(row["outletid"]),
                                region=row.get("regionname")),
-        confidence=_conf(row), reasoning_mode="deterministic",
+        confidence=_conf(row), reasoning_mode=reasoning_mode,  # inherits the lens (LLM vs rule)
         summary=(f"{label}: outlet #{row['outletid']} ({row.get('tier_w')}, "
                  f"{row.get('format')}) realises {round(ri, 2)} of its peer frontier — "
                  f"~₹{int(inr):,}/yr {basis_txt}."),
@@ -121,29 +123,35 @@ def grade_outlets(get_store: Callable[[], Any], run_id: str, tenant_id: str,
     horizon = 90
     targets = res.get("targets", [])
     label = res.get("label", "Opportunity grade")
-    archetype = res.get("archetype", "balanced")
+    # authoritative from the engine: reasoning_mode = "reasoning" iff the LLM lens
+    # parsed the mission, else "deterministic"; ranking drives the ₹-sizing basis.
+    rmode = res.get("reasoning_mode", "deterministic")
+    ranking = res.get("ranking", "headroom")
+    gap_play = _is_gap_play(ranking)
 
     outputs: list[dict] = []
     for row in targets:
         outputs.append(_obs(run_id, tenant_id, signal_id, row, guard).model_dump(mode="json"))
         outputs.append(_opp(run_id, tenant_id, signal_id, row, label, horizon,
-                            bool(guard.get("safe")), archetype).model_dump(mode="json"))
+                            bool(guard.get("safe")), gap_play, rmode).model_dump(mode="json"))
 
-    total_inr = round(sum(_annual_opportunity(r, archetype) for r in targets), 0)
-    # mission-text interpretation (text -> weights) is a reasoning step; the
-    # grades themselves are deterministic.
-    interpreted = bool(text) and not weights
-    reasoning_modes = (["reasoning", "deterministic"] if interpreted else ["deterministic"])
+    total_inr = round(sum(_annual_opportunity(r, gap_play) for r in targets), 0)
+    # observations are always deterministic (raw levers); opportunities inherit the
+    # lens, so the run carries both modes iff the lens reasoned.
+    reasoning_modes = ["reasoning", "deterministic"] if rmode == "reasoning" else ["deterministic"]
+    basis_txt = "headroom" if gap_play else "incremental"
     scope_txt = (" in " + ", ".join(regions)) if regions else ""
     summary = (f"{label}: graded {res.get('n_candidates')} actionable outlets for "
                f"{company or 'all companies'}{scope_txt}; emitted {len(targets)} observations + "
-               f"{len(targets)} opportunities (~₹{int(total_inr):,}/yr total headroom).")
+               f"{len(targets)} opportunities (~₹{int(total_inr):,}/yr total {basis_txt}).")
     counters = {
         "n_observations": len(targets), "n_opportunities": len(targets),
         "n_candidates": res.get("n_candidates"), "tier_distribution": res.get("tier_distribution"),
+        "tier_candidates": res.get("tier_candidates"),
         "total_inr_opportunity": total_inr, "weights": res.get("weights"),
         "guard": guard, "interpretation": res.get("interpretation"),
         "archetype": res.get("archetype"), "label": label,
+        "reasoning_mode": rmode, "ranking": ranking,
         "target_tiers": res.get("target_tiers"), "company": company or "all companies",
         "regions": regions or "all",
     }

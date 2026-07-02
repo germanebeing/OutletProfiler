@@ -51,8 +51,14 @@ def test_manifest_matches_case_c_shape():
     assert set(m["surfaces"]) == {"api", "mcp", "ui", "cli", "a2a"}
     assert set(m["components"]["schemas"]) == {"Observation", "Diagnosis", "Plug", "Opportunity"}
     for a in m["actions"]:
-        assert a["reasoning_mode"] in ("deterministic", "reasoning")
+        # per-action reasoning is dual-path (LLM lens vs deterministic rules), so
+        # the action advertises the set of modes it can produce, not a fixed one.
+        assert a["reasoning_modes"] and all(
+            rm in ("deterministic", "reasoning") for rm in a["reasoning_modes"])
         assert a["produces"] and "output_schema" in a
+    # the new order-frequency play is discoverable on grade_outlets
+    ga = next(a for a in m["actions"] if a["name"] == "grade_outlets")
+    assert "frequency" in {p["name"] for p in ga["plays"]}
     assert {a["name"] for a in m["actions"]} == set(identity.ACTION_NAMES)
 
 

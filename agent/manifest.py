@@ -16,11 +16,10 @@ _GRADE_INPUT = {
     "type": "object",
     "properties": {
         "company": {"type": ["string", "null"], "description": "Active company (tenant scope). Omit / 'all' = supervisor cross-company."},
-        "mission": {"type": "string", "description": "Plain-English play, e.g. 'launch a premium SKU in kirana'. Interpreted into lever weights (reasoning)."},
-        "weights": {"type": "object", "description": "Explicit lever weights {range,cadence,recency,value}; overrides mission interpretation (deterministic)."},
+        "mission": {"type": "string", "description": "Plain-English play, e.g. 'improve order frequency in Delhi kirana'. Parsed into a grading lens {weights, target tiers, ranking, region/format filters}: an optional Claude LLM lens when ANTHROPIC_API_KEY is configured (reasoning_mode='reasoning'), else deterministic keyword rules (reasoning_mode='deterministic'). Region/format scoping is inferred from the text; see `plays` for the built-in archetypes."},
+        "weights": {"type": "object", "description": "Explicit lever weights {range,cadence,recency,value}; overrides mission interpretation (always deterministic)."},
         "regions": {"type": "array", "items": {"type": "string"}, "description": "Regions/geographies to scope the run to; omit or empty = all regions of the company."},
         "region": {"type": ["string", "null"], "description": "Single-region shorthand for `regions`."},
-        "format": {"type": ["string", "null"]},
         "limit": {"type": "integer", "default": 40, "minimum": 1, "maximum": 500},
     },
     "anyOf": [{"required": ["mission"]}, {"required": ["weights"]}],
@@ -43,13 +42,26 @@ _OUTCOME_INPUT = {
 }
 
 
+def _plays() -> list[dict[str, Any]]:
+    """The built-in mission archetypes a supervisor can name in plain words (a
+    novel ask is handled by the LLM lens as a 'custom' play). Sourced from the
+    engine so the advertised list never drifts."""
+    from engine.mission import ARCHETYPES
+    return [{"name": k, "label": v["label"], "target_tiers": v["target_tiers"]}
+            for k, v in ARCHETYPES.items()]
+
+
 def _actions() -> list[dict[str, Any]]:
     return [
         {
             "name": "grade_outlets",
-            "description": "Grade outlets by opportunity for a business play (plain-English mission or explicit lever weights). Emits one Observation per outlet (tier + realisation + grade-vector) and one ₹-sized Opportunity per actionable outlet. Read-only.",
+            "description": "Grade outlets by opportunity for a business play (plain-English mission or explicit lever weights). Emits one Observation per outlet (tier + realisation + grade-vector) and one ₹-sized Opportunity per actionable outlet, ranked by opportunity and stratified across tiers. Read-only.",
             "async": True, "reversible": True,
-            "reasoning_mode": "reasoning",
+            # per-run: 'reasoning' when the LLM lens parses the mission, else
+            # 'deterministic' (keyword fallback or explicit weights). The emitted
+            # envelope carries the authoritative per-output reasoning_mode.
+            "reasoning_modes": ["deterministic", "reasoning"],
+            "plays": _plays(),
             "side_effects": ["grade.run_created", "grade.tiers_assigned", "grade.opportunities_emitted"],
             "input_schema": _GRADE_INPUT,
             "output_schema": output_envelope_schema(["observation", "opportunity"]),
@@ -59,7 +71,7 @@ def _actions() -> list[dict[str, Any]]:
             "name": "validate_opportunity_hypothesis",
             "description": "Validate a supervisor hypothesis about outlet opportunity/tiers, data-first: re-grade the in-scope outlets against their peer frontiers, compare to the assertion, and return a confirm | refute | inconclusive Diagnosis tagged with reasoning_mode, plus the supporting Observations. Read-only.",
             "async": True, "reversible": True,
-            "reasoning_mode": "reasoning",
+            "reasoning_modes": ["deterministic", "reasoning"],
             "side_effects": ["grade.run_created", "grade.observations_emitted", "grade.diagnosis_emitted"],
             "input_schema": _VALIDATE_INPUT,
             "output_schema": output_envelope_schema(["diagnosis", "observation"]),
@@ -69,7 +81,7 @@ def _actions() -> list[dict[str, Any]]:
             "name": "analyze_outcome",
             "description": "Measure the effect of an acted-on opportunity and write it into the learning loop. Phase-1 stub (M5) — returns an inconclusive Diagnosis until post-action data is collected.",
             "async": True, "reversible": True,
-            "reasoning_mode": "deterministic",
+            "reasoning_modes": ["deterministic"],
             "side_effects": ["outcome.measured"],
             "input_schema": _OUTCOME_INPUT,
             "output_schema": output_envelope_schema(["diagnosis"]),
@@ -118,7 +130,7 @@ def build_agent_card() -> dict[str, Any]:
         "reasoning_modes": I.REASONING_MODES,
         "skills": [
             {"id": "grade_outlets", "name": "Grade outlets by opportunity",
-             "description": "Opportunity tier + grade-vector + ₹-sized headroom per outlet."},
+             "description": "Opportunity tier + grade-vector + ₹-sized headroom per outlet. A plain-English play is parsed into a grading lens by an optional Claude LLM lens (reasoning) with a deterministic keyword fallback; built-in plays include premium_launch, volume_scheme, frequency (order-cadence), distribution, retention, reactivation, balanced."},
             {"id": "validate_opportunity_hypothesis", "name": "Validate a hypothesis",
              "description": "Confirm/refute/inconclusive verdict on a supervisor assertion, data-first."},
             {"id": "analyze_outcome", "name": "Measure an outcome",

@@ -39,7 +39,12 @@ PUBLIC_A2A_URL = PUBLIC_API_URL.rstrip("/") + "/a2a"
 CLI_NAME = "profiler"
 
 DEFAULT_TENANT = os.environ.get("PROFILER_TENANT", "default")
-DEV_AUTH_TOKENS = {"dev-token": DEFAULT_TENANT}
+# production bearer token(s) come from the environment (PROFILER_AUTH_TOKENS,
+# comma-separated, or PROFILER_AUTH_TOKEN); when set they REPLACE the dev token so
+# 'dev-token' does not work in prod. Falls back to 'dev-token' for local dev only.
+_env_tokens = [t.strip() for t in os.environ.get(
+    "PROFILER_AUTH_TOKENS", os.environ.get("PROFILER_AUTH_TOKEN", "")).split(",") if t.strip()]
+DEV_AUTH_TOKENS = {t: DEFAULT_TENANT for t in _env_tokens} or {"dev-token": DEFAULT_TENANT}
 REQUIRE_AUTH = os.environ.get("PROFILER_REQUIRE_AUTH", "0") == "1"
 
 STATUS = "beta"

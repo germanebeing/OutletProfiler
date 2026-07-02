@@ -145,6 +145,44 @@ def test_grade_outlets_emits_observations_and_opportunities(result):
     assert "inr_value" in opp and opp["horizon_days"]
 
 
+def test_grade_outlets_reasoning_path_propagates(result, monkeypatch):
+    """When the LLM lens fires, the run + Opportunity carry reasoning_mode
+    'reasoning' and the ₹-sizing uses the ranking-driven headroom basis — the
+    exact contract the supervisor consumes. Mocks the lens so it runs keyless."""
+    from engine import llm_parse
+    monkeypatch.setattr(llm_parse, "available", lambda: True)
+    monkeypatch.setattr(llm_parse, "plan", lambda *a, **k: {
+        "weights": {"range": 0.15, "cadence": 0.6, "recency": 0.2, "value": 0.05},
+        "target_tiers": ["T3", "T4"], "ranking": "headroom", "regions": [], "formats": [],
+        "label": "Order-frequency lift", "rationale": "cadence is the binding lever"})
+    fake = _FakeStore(result)
+    company = result.graded.filter(result.graded["has_data"])["company_name"][0]
+    out = handlers.grade_outlets(lambda: fake, "run_r", "default", None,
+                                 {"company": company, "mission": "lift the ones ordering rarely", "limit": 5})
+    assert out["reasoning_modes"] == ["reasoning", "deterministic"]
+    c = out["counters"]
+    assert c["reasoning_mode"] == "reasoning" and c["ranking"] == "headroom"
+    assert c["tier_candidates"] is not None
+    assert "headroom" in out["summary"]  # gap-play ₹ basis, not launch-uplift
+    opps = [o for o in out["outputs"] if o["type"] == "opportunity"]
+    assert opps and all(o["reasoning_mode"] == "reasoning" for o in opps)
+
+
+def test_grade_outlets_deterministic_when_lens_off(result, monkeypatch):
+    """No LLM key -> keyword fallback -> the run is tagged deterministic, not
+    falsely 'reasoning' just because the mission was free text (the audit bug)."""
+    from engine import llm_parse
+    monkeypatch.setattr(llm_parse, "available", lambda: False)
+    fake = _FakeStore(result)
+    company = result.graded.filter(result.graded["has_data"])["company_name"][0]
+    out = handlers.grade_outlets(lambda: fake, "run_d", "default", None,
+                                 {"company": company, "mission": "improve order frequency", "limit": 5})
+    assert out["reasoning_modes"] == ["deterministic"]
+    assert out["counters"]["reasoning_mode"] == "deterministic"
+    assert all(o["reasoning_mode"] == "deterministic"
+               for o in out["outputs"] if o["type"] == "opportunity")
+
+
 def test_validate_hypothesis_returns_verdict_diagnosis(result):
     fake = _FakeStore(result)
     company = result.graded.filter(result.graded["has_data"])["company_name"][0]

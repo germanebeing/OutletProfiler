@@ -1,0 +1,42 @@
+{
+  "CG Corp (Wai Wai)": {
+    "company_id": 11022,
+    "regions": [
+      "Meghalaya",
+      "Mizoram",
+      "Delhi"
+    ],
+    "selling_outlets": 1278,
+    "nodata_outlets": 250
+  },
+  "Anchor": {
+    "company_id": 11016,
+    "regions": [
+      "Madhya pradesh",
+      "Delhi",
+      "BIHAR"
+    ],
+    "selling_outlets": 1582,
+    "nodata_outlets": 250
+  },
+  "Hamdard": {
+    "company_id": 10387,
+    "regions": [
+      "GUJARAT",
+      "JHARKHAND",
+      "CHHATTISGARH"
+    ],
+    "selling_outlets": 1898,
+    "nodata_outlets": 250
+  },
+  "Everest Spices": {
+    "company_id": 10177,
+    "regions": [
+      "Jammu & Kashmir",
+      "CHANDIGARH",
+      "Uttrakhand"
+    ],
+    "selling_outlets": 1716,
+    "nodata_outlets": 250
+  }
+}

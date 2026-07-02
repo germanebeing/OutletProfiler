@@ -1,0 +1,1325 @@
+{
+  "agent_id": "outlet-profiler",
+  "agent_version": "0.1.0",
+  "display_name": "Outlet Profiler",
+  "description": "Profiles every outlet by opportunity \u2014 how well it performs versus structurally-similar peers on size-neutral intensity levers \u2014 and assigns an opportunity tier (T1\u2013T4) plus a grade-as-vector per business play. A CPG-OS Case-C depth agent: it OWNS the outlet opportunity-tier ground truth other products defer to, validates supervisor hypotheses about that truth data-first, and never orchestrates or sets cross-product priority. Every response is tagged deterministic (a rule over the data) or reasoning (an interpretation call).",
+  "owner_squad": "fieldassist-categorisation",
+  "tier": "S",
+  "status": "beta",
+  "capacity": {
+    "sustained_rps": 8,
+    "peak_rps": 15,
+    "max_concurrent_runs": 4,
+    "p95_latency_ms": 4000,
+    "rate_limit_per_tenant_rps": 5,
+    "load_tested_at": null,
+    "load_tested_to_rps": null
+  },
+  "slo": {
+    "availability": 0.995
+  },
+  "reasoning_modes": [
+    "deterministic",
+    "reasoning"
+  ],
+  "produces_contract_types": [
+    "observation",
+    "diagnosis",
+    "opportunity"
+  ],
+  "accepts_contract_types": [
+    "diagnosis",
+    "opportunity"
+  ],
+  "actions": [
+    {
+      "name": "grade_outlets",
+      "description": "Grade outlets by opportunity for a business play (plain-English mission or explicit lever weights). Emits one Observation per outlet (tier + realisation + grade-vector) and one \u20b9-sized Opportunity per actionable outlet. Read-only.",
+      "async": true,
+      "reversible": true,
+      "reasoning_mode": "reasoning",
+      "side_effects": [
+        "grade.run_created",
+        "grade.tiers_assigned",
+        "grade.opportunities_emitted"
+      ],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Active company (tenant scope). Omit / 'all' = supervisor cross-company."
+          },
+          "mission": {
+            "type": "string",
+            "description": "Plain-English play, e.g. 'launch a premium SKU in kirana'. Interpreted into lever weights (reasoning)."
+          },
+          "weights": {
+            "type": "object",
+            "description": "Explicit lever weights {range,cadence,recency,value}; overrides mission interpretation (deterministic)."
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Regions/geographies to scope the run to; omit or empty = all regions of the company."
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Single-region shorthand for `regions`."
+          },
+          "format": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "default": 40,
+            "minimum": 1,
+            "maximum": 500
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "mission"
+            ]
+          },
+          {
+            "required": [
+              "weights"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "produces_contract_types"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "produces_contract_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "observation",
+                "opportunity"
+              ]
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/Observation"
+                },
+                {
+                  "$ref": "#/components/schemas/Opportunity"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "produces": [
+        "observation",
+        "opportunity"
+      ]
+    },
+    {
+      "name": "validate_opportunity_hypothesis",
+      "description": "Validate a supervisor hypothesis about outlet opportunity/tiers, data-first: re-grade the in-scope outlets against their peer frontiers, compare to the assertion, and return a confirm | refute | inconclusive Diagnosis tagged with reasoning_mode, plus the supporting Observations. Read-only.",
+      "async": true,
+      "reversible": true,
+      "reasoning_mode": "reasoning",
+      "side_effects": [
+        "grade.run_created",
+        "grade.observations_emitted",
+        "grade.diagnosis_emitted"
+      ],
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "hypothesis"
+        ],
+        "properties": {
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hypothesis": {
+            "type": "string",
+            "description": "Supervisor assertion to test data-first, e.g. 'my T1 outlets in Delhi have gone dormant'."
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "tier": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "produces_contract_types"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "produces_contract_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "diagnosis",
+                "observation"
+              ]
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/Diagnosis"
+                },
+                {
+                  "$ref": "#/components/schemas/Observation"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "produces": [
+        "diagnosis",
+        "observation"
+      ]
+    },
+    {
+      "name": "analyze_outcome",
+      "description": "Measure the effect of an acted-on opportunity and write it into the learning loop. Phase-1 stub (M5) \u2014 returns an inconclusive Diagnosis until post-action data is collected.",
+      "async": true,
+      "reversible": true,
+      "reasoning_mode": "deterministic",
+      "side_effects": [
+        "outcome.measured"
+      ],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "opportunity_id": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "produces_contract_types"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "produces_contract_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "diagnosis"
+              ]
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Diagnosis"
+            }
+          }
+        }
+      },
+      "produces": [
+        "diagnosis"
+      ]
+    }
+  ],
+  "surfaces": {
+    "api": "http://localhost:8100",
+    "mcp": "http://localhost:8100/mcp",
+    "ui": "http://localhost:8100",
+    "cli": "profiler",
+    "a2a": "http://localhost:8100/a2a"
+  },
+  "components": {
+    "schemas": {
+      "Observation": {
+        "$defs": {
+          "EntityRefs": {
+            "additionalProperties": true,
+            "description": "References to business entities this output is about. The supervisor uses\nthese to correlate outputs across agents. `tenant_id` is required for\nisolation; everything else is optional.",
+            "properties": {
+              "tenant_id": {
+                "title": "Tenant Id",
+                "type": "string"
+              },
+              "outlet_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Outlet Id"
+              },
+              "site_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Site Id"
+              },
+              "sku_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Sku Id"
+              },
+              "distributor_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Distributor Id"
+              },
+              "rep_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Rep Id"
+              },
+              "region": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Region"
+              }
+            },
+            "required": [
+              "tenant_id"
+            ],
+            "title": "EntityRefs",
+            "type": "object"
+          },
+          "Evidence": {
+            "additionalProperties": true,
+            "description": "One piece of evidence supporting a contract object. Free-form by value so\neach engine carries its domain payload; the supervisor propagates it for\nhuman review and stores it for traceability.",
+            "properties": {
+              "kind": {
+                "description": "What this evidence is. Examples: peer_frontier, decorrelation_guard, realisation_levers, distribution_compare, statistical_test.",
+                "title": "Kind",
+                "type": "string"
+              },
+              "value": {
+                "description": "The evidence payload.",
+                "title": "Value"
+              },
+              "weight": {
+                "anyOf": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Optional 0..1 weight of this evidence in the overall confidence.",
+                "title": "Weight"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "title": "Evidence",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A perceived fact about an entity. The Profiler emits one per graded\noutlet: 'outlet Y realises 0.62 of its peer frontier \u2192 tier T2', carrying\nthe levers and peer as value/evidence.",
+        "properties": {
+          "contract_version": {
+            "const": "1",
+            "default": "1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "type": {
+            "const": "observation",
+            "default": "observation",
+            "title": "Type",
+            "type": "string"
+          },
+          "agent_id": {
+            "description": "Which agent produced this.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_version": {
+            "title": "Agent Version",
+            "type": "string"
+          },
+          "run_id": {
+            "description": "The run this output came from.",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "signal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "If this run was triggered by a supervisor signal, the signal_id is propagated here for traceability.",
+            "title": "Signal Id"
+          },
+          "entity_refs": {
+            "$ref": "#/$defs/EntityRefs"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reasoning_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "deterministic",
+                  "reasoning"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Basis of this output: 'deterministic' (a rule/formula over the warehouse data \u2014 the tier, the guard, peer-frontier realisation) or 'reasoning' (an interpretation/judgment, e.g. parsing a plain-English mission or hypothesis into lever weights).",
+            "title": "Reasoning Mode"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "produced_at": {
+            "format": "date-time",
+            "title": "Produced At",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Domain label: outlet_opportunity_grade | grade_vector | \u2026",
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "additionalProperties": true,
+            "description": "The perception payload. Shape varies by `kind`.",
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "agent_id",
+          "agent_version",
+          "run_id",
+          "entity_refs",
+          "confidence",
+          "kind",
+          "value"
+        ],
+        "title": "Observation",
+        "type": "object"
+      },
+      "Diagnosis": {
+        "$defs": {
+          "EntityRefs": {
+            "additionalProperties": true,
+            "description": "References to business entities this output is about. The supervisor uses\nthese to correlate outputs across agents. `tenant_id` is required for\nisolation; everything else is optional.",
+            "properties": {
+              "tenant_id": {
+                "title": "Tenant Id",
+                "type": "string"
+              },
+              "outlet_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Outlet Id"
+              },
+              "site_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Site Id"
+              },
+              "sku_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Sku Id"
+              },
+              "distributor_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Distributor Id"
+              },
+              "rep_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Rep Id"
+              },
+              "region": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Region"
+              }
+            },
+            "required": [
+              "tenant_id"
+            ],
+            "title": "EntityRefs",
+            "type": "object"
+          },
+          "Evidence": {
+            "additionalProperties": true,
+            "description": "One piece of evidence supporting a contract object. Free-form by value so\neach engine carries its domain payload; the supervisor propagates it for\nhuman review and stores it for traceability.",
+            "properties": {
+              "kind": {
+                "description": "What this evidence is. Examples: peer_frontier, decorrelation_guard, realisation_levers, distribution_compare, statistical_test.",
+                "title": "Kind",
+                "type": "string"
+              },
+              "value": {
+                "description": "The evidence payload.",
+                "title": "Value"
+              },
+              "weight": {
+                "anyOf": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Optional 0..1 weight of this evidence in the overall confidence.",
+                "title": "Weight"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "title": "Evidence",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A causal claim / verdict built from Observations. The Profiler emits one\nper hypothesis validation, tagged with a verdict and reasoning_mode.",
+        "properties": {
+          "contract_version": {
+            "const": "1",
+            "default": "1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "type": {
+            "const": "diagnosis",
+            "default": "diagnosis",
+            "title": "Type",
+            "type": "string"
+          },
+          "agent_id": {
+            "description": "Which agent produced this.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_version": {
+            "title": "Agent Version",
+            "type": "string"
+          },
+          "run_id": {
+            "description": "The run this output came from.",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "signal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "If this run was triggered by a supervisor signal, the signal_id is propagated here for traceability.",
+            "title": "Signal Id"
+          },
+          "entity_refs": {
+            "$ref": "#/$defs/EntityRefs"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reasoning_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "deterministic",
+                  "reasoning"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Basis of this output: 'deterministic' (a rule/formula over the warehouse data \u2014 the tier, the guard, peer-frontier realisation) or 'reasoning' (an interpretation/judgment, e.g. parsing a plain-English mission or hypothesis into lever weights).",
+            "title": "Reasoning Mode"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "produced_at": {
+            "format": "date-time",
+            "title": "Produced At",
+            "type": "string"
+          },
+          "summary": {
+            "description": "One-line plain-English claim/verdict.",
+            "title": "Summary",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "enum": [
+                  "confirm",
+                  "refute",
+                  "inconclusive"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For hypothesis validation: does the data confirm/refute the supervisor's assertion, or is it inconclusive.",
+            "title": "Verdict"
+          },
+          "root_causes": {
+            "description": "Ordered causes, most likely first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Root Causes",
+            "type": "array"
+          },
+          "contributing_output_ids": {
+            "description": "run_id/outlet ids of the Observations this was built from.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Contributing Output Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_id",
+          "agent_version",
+          "run_id",
+          "entity_refs",
+          "confidence",
+          "summary",
+          "root_causes"
+        ],
+        "title": "Diagnosis",
+        "type": "object"
+      },
+      "Plug": {
+        "$defs": {
+          "EntityRefs": {
+            "additionalProperties": true,
+            "description": "References to business entities this output is about. The supervisor uses\nthese to correlate outputs across agents. `tenant_id` is required for\nisolation; everything else is optional.",
+            "properties": {
+              "tenant_id": {
+                "title": "Tenant Id",
+                "type": "string"
+              },
+              "outlet_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Outlet Id"
+              },
+              "site_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Site Id"
+              },
+              "sku_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Sku Id"
+              },
+              "distributor_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Distributor Id"
+              },
+              "rep_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Rep Id"
+              },
+              "region": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Region"
+              }
+            },
+            "required": [
+              "tenant_id"
+            ],
+            "title": "EntityRefs",
+            "type": "object"
+          },
+          "Evidence": {
+            "additionalProperties": true,
+            "description": "One piece of evidence supporting a contract object. Free-form by value so\neach engine carries its domain payload; the supervisor propagates it for\nhuman review and stores it for traceability.",
+            "properties": {
+              "kind": {
+                "description": "What this evidence is. Examples: peer_frontier, decorrelation_guard, realisation_levers, distribution_compare, statistical_test.",
+                "title": "Kind",
+                "type": "string"
+              },
+              "value": {
+                "description": "The evidence payload.",
+                "title": "Value"
+              },
+              "weight": {
+                "anyOf": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Optional 0..1 weight of this evidence in the overall confidence.",
+                "title": "Weight"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "title": "Evidence",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A proposed action that, if executed, addresses a Diagnosis or captures an\nOpportunity. Named + parameterised but NOT executed (HITL + MCP).",
+        "properties": {
+          "contract_version": {
+            "const": "1",
+            "default": "1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "type": {
+            "const": "plug",
+            "default": "plug",
+            "title": "Type",
+            "type": "string"
+          },
+          "agent_id": {
+            "description": "Which agent produced this.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_version": {
+            "title": "Agent Version",
+            "type": "string"
+          },
+          "run_id": {
+            "description": "The run this output came from.",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "signal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "If this run was triggered by a supervisor signal, the signal_id is propagated here for traceability.",
+            "title": "Signal Id"
+          },
+          "entity_refs": {
+            "$ref": "#/$defs/EntityRefs"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reasoning_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "deterministic",
+                  "reasoning"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Basis of this output: 'deterministic' (a rule/formula over the warehouse data \u2014 the tier, the guard, peer-frontier realisation) or 'reasoning' (an interpretation/judgment, e.g. parsing a plain-English mission or hypothesis into lever weights).",
+            "title": "Reasoning Mode"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "produced_at": {
+            "format": "date-time",
+            "title": "Produced At",
+            "type": "string"
+          },
+          "action": {
+            "description": "Short verb-phrase action name.",
+            "title": "Action",
+            "type": "string"
+          },
+          "description": {
+            "description": "Plain-English what + why.",
+            "title": "Description",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "description": "Payload for the executor / MCP tool.",
+            "title": "Parameters",
+            "type": "object"
+          },
+          "reversible": {
+            "title": "Reversible",
+            "type": "boolean"
+          },
+          "blast_radius": {
+            "additionalProperties": true,
+            "description": "Scope of impact if executed \u2014 outlet_count, inr_value, etc.",
+            "title": "Blast Radius",
+            "type": "object"
+          }
+        },
+        "required": [
+          "agent_id",
+          "agent_version",
+          "run_id",
+          "entity_refs",
+          "confidence",
+          "action",
+          "description",
+          "parameters",
+          "reversible"
+        ],
+        "title": "Plug",
+        "type": "object"
+      },
+      "Opportunity": {
+        "$defs": {
+          "EntityRefs": {
+            "additionalProperties": true,
+            "description": "References to business entities this output is about. The supervisor uses\nthese to correlate outputs across agents. `tenant_id` is required for\nisolation; everything else is optional.",
+            "properties": {
+              "tenant_id": {
+                "title": "Tenant Id",
+                "type": "string"
+              },
+              "outlet_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Outlet Id"
+              },
+              "site_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Site Id"
+              },
+              "sku_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Sku Id"
+              },
+              "distributor_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Distributor Id"
+              },
+              "rep_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Rep Id"
+              },
+              "region": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Region"
+              }
+            },
+            "required": [
+              "tenant_id"
+            ],
+            "title": "EntityRefs",
+            "type": "object"
+          },
+          "Evidence": {
+            "additionalProperties": true,
+            "description": "One piece of evidence supporting a contract object. Free-form by value so\neach engine carries its domain payload; the supervisor propagates it for\nhuman review and stores it for traceability.",
+            "properties": {
+              "kind": {
+                "description": "What this evidence is. Examples: peer_frontier, decorrelation_guard, realisation_levers, distribution_compare, statistical_test.",
+                "title": "Kind",
+                "type": "string"
+              },
+              "value": {
+                "description": "The evidence payload.",
+                "title": "Value"
+              },
+              "weight": {
+                "anyOf": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Optional 0..1 weight of this evidence in the overall confidence.",
+                "title": "Weight"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "title": "Evidence",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A sized commercial chance, \u20b9-denominated. The Profiler sizes an outlet's\nunrealised headroom against its peer frontier.",
+        "properties": {
+          "contract_version": {
+            "const": "1",
+            "default": "1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "type": {
+            "const": "opportunity",
+            "default": "opportunity",
+            "title": "Type",
+            "type": "string"
+          },
+          "agent_id": {
+            "description": "Which agent produced this.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_version": {
+            "title": "Agent Version",
+            "type": "string"
+          },
+          "run_id": {
+            "description": "The run this output came from.",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "signal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "If this run was triggered by a supervisor signal, the signal_id is propagated here for traceability.",
+            "title": "Signal Id"
+          },
+          "entity_refs": {
+            "$ref": "#/$defs/EntityRefs"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reasoning_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "deterministic",
+                  "reasoning"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Basis of this output: 'deterministic' (a rule/formula over the warehouse data \u2014 the tier, the guard, peer-frontier realisation) or 'reasoning' (an interpretation/judgment, e.g. parsing a plain-English mission or hypothesis into lever weights).",
+            "title": "Reasoning Mode"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "produced_at": {
+            "format": "date-time",
+            "title": "Produced At",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "inr_value": {
+            "description": "\u20b9 value of the opportunity.",
+            "title": "Inr Value",
+            "type": "number"
+          },
+          "horizon_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Time horizon over which the inr_value is expected, if known.",
+            "title": "Horizon Days"
+          },
+          "confidence_level": {
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Confidence Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "agent_version",
+          "run_id",
+          "entity_refs",
+          "confidence",
+          "summary",
+          "inr_value"
+        ],
+        "title": "Opportunity",
+        "type": "object"
+      }
+    }
+  },
+  "listing": {
+    "category": "Operations",
+    "status": "Beta",
+    "tagline": "Regrade every outlet by opportunity, not size.",
+    "value_proposition": "Owns the outlet opportunity-tier truth: grades each outlet against its structural-peer + intensity frontier, sizes unrealised headroom in \u20b9, and validates supervisor hypotheses data-first \u2014 every response tagged deterministic|reasoning.",
+    "target_audience": "CPG KAM / sales leaders and the CPG-OS supervisor",
+    "use_cases": [
+      "Pick the right outlets for a premium-SKU launch or a volume scheme",
+      "Validate a supervisor hypothesis (e.g. 'my T1 outlets in Delhi have gone dormant')",
+      "Size the \u20b9 headroom to close per outlet and how to move it up a tier"
+    ],
+    "evals": {
+      "suite": "tests/evals",
+      "gates": "mission 100% \u00b7 reasoning_mode 100% \u00b7 verdict 100%"
+    }
+  }
+}

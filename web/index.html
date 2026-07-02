@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Outlet Profiler</title>
+<link rel="stylesheet" href="/static/floodlight.css"/>
+<style>
+/* professional type for a CPG sales/KAM persona — swap Floodlight's Anton display for a clean grotesk */
+:root{--font-display:"Hanken Grotesk",system-ui,sans-serif;--glow-1:rgba(230,240,255,.05);--glow-2:rgba(255,197,49,.05);--glow-3:rgba(255,59,59,.04);--grain-opacity:.02}
+html.light{--glow-1:rgba(70,130,210,.05);--glow-2:rgba(245,176,40,.06);--glow-3:rgba(255,80,80,.03)}
+body{font-size:15px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+header{position:sticky;top:0;z-index:30;background:var(--bar);backdrop-filter:blur(10px);border-bottom:1px solid rgb(var(--fg)/.08)}
+.hd{display:flex;align-items:center;gap:16px;padding:11px 0 0}
+.brand{display:flex;align-items:center;gap:11px;font-weight:800;flex:none}
+.brand .logo{font-family:var(--font-display);color:var(--cherry-ink);letter-spacing:-.01em;font-size:21px;font-weight:800}
+.brand small{color:rgb(var(--fg)/.5);font-weight:600}
+.hdspace{flex:1}
+nav.tabs{display:flex;gap:2px;flex-wrap:wrap;padding:6px 0 10px}
+nav.tabs button{background:transparent;border:0;color:rgb(var(--fg)/.55);padding:8px 11px;border-radius:9px;cursor:pointer;font:inherit;font-weight:600;font-size:13.5px}
+nav.tabs button:hover{color:rgb(var(--fg));background:rgb(var(--fg)/.05)}
+nav.tabs button.on{color:rgb(var(--fg));background:rgb(var(--fg)/.09)}
+.cosel{display:flex;align-items:center;gap:8px;flex:none;padding-left:10px;border-left:1px solid rgb(var(--fg)/.1)}
+.cosel .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:rgb(var(--fg)/.4);font-weight:700}
+#gco{min-height:38px;padding:7px 11px;font-weight:700;max-width:210px}
+main{padding:34px 0 110px}
+h1.hero{font-family:var(--font-display);font-weight:800;font-size:31px;letter-spacing:-.02em;margin:0 0 10px;line-height:1.12}
+h2.sec{font-family:var(--font-display);font-weight:800;font-size:23px;letter-spacing:-.01em;margin:0 0 8px}
+.lead{color:rgb(var(--fg)/.6);font-size:14.5px;max-width:700px;margin:0 0 24px;line-height:1.6}
+.kick{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:rgb(var(--fg)/.42);font-weight:700}
+.pad{padding:20px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.mut{color:rgb(var(--fg)/.55);font-size:13px}
+select.field,input.field{min-height:42px;padding:9px 12px}
+select.field{width:auto}
+textarea.field{resize:vertical;min-height:62px;line-height:1.5}
+.tier{display:inline-flex;align-items:center;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+.tier.T1{background:rgba(47,214,122,.16);color:var(--pitch-ink)}.tier.T2{background:rgba(71,194,255,.16);color:var(--sky-ink)}
+.tier.T3{background:rgba(255,197,49,.16);color:var(--amber-ink)}.tier.T4{background:rgba(255,59,59,.16);color:var(--cherry-ink)}
+.tier.prov{background:rgb(var(--fg)/.08);color:rgb(var(--fg)/.5)}
+.grid{display:grid;gap:14px}
+.g-cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.g-stat{grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
+.tcard{cursor:pointer;transition:.15s;padding:15px}
+.tcard:hover{transform:translateY(-2px);border-color:rgba(255,59,59,.4)}
+.stat .big{font-family:var(--font-mono);font-size:29px;font-weight:700;letter-spacing:-.02em;margin-top:4px}
+.lv{display:flex;justify-content:space-between;font-size:12.5px;color:rgb(var(--fg)/.6);padding:3px 0;border-top:1px solid rgb(var(--fg)/.07)}
+.oid{font-family:var(--font-mono);font-size:12px;color:rgb(var(--fg)/.45)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:rgb(var(--fg)/.45);font-weight:700;padding:10px 11px;border-bottom:1px solid rgb(var(--fg)/.1);position:sticky;top:0;background:var(--bar);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td{padding:9px 11px;border-bottom:1px solid rgb(var(--fg)/.06)}
+tr.clk{cursor:pointer}tr.clk:hover td{background:rgb(var(--fg)/.04)}
+.tablewrap{max-height:620px;overflow:auto;border:1px solid rgb(var(--fg)/.08);border-radius:14px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+input[type=range]{width:100%;accent-color:var(--cherry)}
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px 26px;margin:10px 0 4px}
+.wrowh{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px;font-weight:700}
+.why{font-size:12px;color:rgb(var(--fg)/.45);margin-top:4px;line-height:1.45}
+.callout{border-radius:12px;padding:12px 15px;font-size:13.5px;display:flex;gap:10px;border:1px solid;line-height:1.45}
+.callout.ok{background:rgba(47,214,122,.08);border-color:rgba(47,214,122,.3);color:var(--pitch-ink)}
+.callout.warn{background:rgba(255,197,49,.08);border-color:rgba(255,197,49,.3);color:var(--amber-ink)}
+.callout.bad{background:rgba(255,59,59,.08);border-color:rgba(255,59,59,.35);color:var(--cherry-ink)}
+.callout.info{background:rgba(71,194,255,.08);border-color:rgba(71,194,255,.3);color:var(--sky-ink)}
+.reasonbox{border:1px dashed rgba(255,197,49,.5);background:rgba(255,197,49,.06);border-radius:12px;padding:13px 15px;margin-top:14px}
+.stackbar{display:flex;height:14px;border-radius:6px;overflow:hidden;border:1px solid rgb(var(--fg)/.1)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:rgb(var(--fg)/.6);margin-top:8px}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px}
+.bar{height:9px;border-radius:6px;background:rgb(var(--fg)/.09);overflow:hidden;flex:1}
+.bar>i{display:block;height:100%;border-radius:6px}
+.barrow{margin-bottom:12px}.barlab{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+.fitrow{display:grid;grid-template-columns:118px 1fr 62px;gap:10px;align-items:center;margin-bottom:9px;font-size:12.5px}
+.fitrow .gr{font-family:var(--font-mono);font-weight:700;text-align:right}
+.wpills{display:flex;gap:6px;flex-wrap:wrap}
+.wpill{font-size:11px;font-family:var(--font-mono);background:rgb(var(--fg)/.05);border:1px solid rgb(var(--fg)/.1);border-radius:6px;padding:2px 7px;color:rgb(var(--fg)/.65)}
+.wpill b{color:rgb(var(--fg)/.9)}
+.overlay{position:fixed;inset:0;background:rgba(4,6,9,.72);display:none;place-items:center;z-index:60;padding:20px;backdrop-filter:blur(4px)}
+.overlay.show{display:grid}
+.modal{max-width:600px;width:100%;max-height:88vh;overflow:auto;padding:0}
+.modalh{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 22px;border-bottom:1px solid rgb(var(--fg)/.08);position:sticky;top:0;background:var(--surface);z-index:2}
+.modalb{padding:20px 22px}
+.task{border:1px solid rgb(var(--fg)/.1);border-radius:10px;padding:12px 14px;margin-top:10px;font-size:13.5px;background:rgb(var(--fg)/.03);line-height:1.5}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;margin-top:8px}
+.kv div{display:flex;justify-content:space-between;border-bottom:1px solid rgb(var(--fg)/.06);padding:5px 0;font-size:12.5px}
+.kv .k{color:rgb(var(--fg)/.45)}
+.spin{color:rgb(var(--fg)/.5);padding:34px;text-align:center}
+.iconbtn{background:rgb(var(--fg)/.05);border:1px solid rgb(var(--fg)/.12);color:rgb(var(--fg)/.7);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:15px;flex:none}
+.chipbtn{border:1px solid rgb(var(--fg)/.14);background:rgb(var(--fg)/.03);color:rgb(var(--fg)/.7);border-radius:999px;padding:8px 15px;font-size:13px;cursor:pointer;font-weight:600}
+.chipbtn:hover{color:rgb(var(--fg))}.chipbtn.on{border-color:var(--cherry);background:rgba(255,59,59,.1);color:var(--cherry-ink)}
+.formrow{margin-bottom:14px}.formrow label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.link{color:var(--cherry-ink);cursor:pointer;font-weight:600}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:80;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;display:none}
+.toast.show{display:block}
+.backlink{background:none;border:0;color:rgb(var(--fg)/.55);cursor:pointer;font:inherit;font-weight:600;font-size:13.5px;padding:0}
+.backlink:hover{color:var(--cherry-ink)}
+.runhd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin:6px 0 18px}
+.deltapill{font-family:var(--font-mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgb(var(--fg)/.05);border:1px solid rgb(var(--fg)/.1)}
+.deltapill.up{color:var(--pitch-ink)}.deltapill.dn{color:var(--cherry-ink)}
+.seg{display:inline-flex;background:rgb(var(--fg)/.06);border:1px solid rgb(var(--fg)/.1);border-radius:999px;padding:3px;flex:none}
+.seg button{background:transparent;border:0;color:rgb(var(--fg)/.55);padding:6px 14px;border-radius:999px;cursor:pointer;font:inherit;font-weight:700;font-size:13px}
+.seg button.on{background:var(--cherry);color:#fff}
+.crumb{font-size:13px;color:rgb(var(--fg)/.5);font-weight:600;margin-bottom:8px}
+.crumb b{color:rgb(var(--fg)/.85)}
+.panel{border:1px solid rgb(var(--fg)/.1);border-radius:16px;padding:20px;background:rgb(var(--fg)/.02);margin-top:22px}
+.tabbar{display:flex;gap:4px;flex-wrap:wrap}
+.tabbar button{background:transparent;border:1px solid rgb(var(--fg)/.14);color:rgb(var(--fg)/.6);border-radius:999px;padding:6px 14px;cursor:pointer;font:inherit;font-weight:700;font-size:13px}
+.tabbar button.on{background:var(--pitch);border-color:var(--pitch);color:#04240f}
+.codeblock{position:relative;background:#0b0f14;border:1px solid rgb(var(--fg)/.12);border-radius:12px;margin-top:14px;overflow:auto;max-height:520px}
+html.light .codeblock{background:#0d1117}
+.codeblock pre{margin:0;padding:16px 18px;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;color:#c9d6e5;white-space:pre;overflow:auto}
+.copybtn{position:absolute;top:10px;right:10px;background:rgb(255 255 255/.08);border:1px solid rgb(255 255 255/.14);color:#c9d6e5;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;z-index:2}
+.subtabs{display:flex;gap:6px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.subtabs button{background:rgb(var(--fg)/.05);border:1px solid rgb(var(--fg)/.12);color:rgb(var(--fg)/.6);border-radius:8px;padding:5px 12px;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600}
+.subtabs button.on{border-color:var(--pitch);color:var(--pitch-ink)}
+.subtabs .url{margin-left:auto;font-family:var(--font-mono);font-size:11.5px;color:rgb(var(--fg)/.45)}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.statgrid>div{background:rgb(var(--fg)/.04);border:1px solid rgb(var(--fg)/.09);border-radius:10px;padding:12px 14px}
+.statn{font-size:24px;font-weight:800;line-height:1.1}
+.statk{font-size:12px;color:rgb(var(--fg)/.55);margin-top:3px}
+.imgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.imcell{position:relative;display:block;border-radius:8px;overflow:hidden;border:1px solid rgb(var(--fg)/.12);cursor:pointer;aspect-ratio:1;background:rgb(var(--fg)/.05)}
+.imcell img{width:100%;height:100%;object-fit:cover;display:block}
+.imcell span{position:absolute;left:4px;bottom:4px;font-size:10px;font-family:var(--font-mono);background:rgb(0 0 0/.55);color:#fff;padding:1px 5px;border-radius:5px}
+.omimg{position:relative;margin:0 0 14px;border-radius:10px;overflow:hidden;border:1px solid rgb(var(--fg)/.12);max-height:220px}
+.omimg img{width:100%;max-height:220px;object-fit:cover;display:block}
+.omimg span{position:absolute;left:8px;bottom:8px;font-size:11px;background:rgb(0 0 0/.55);color:#fff;padding:2px 8px;border-radius:6px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="hd">
+    <div class="brand"><span class="logo">Outlet Profiler</span></div>
+    <div class="hdspace"></div>
+    <div class="seg" id="mode"><button data-m="product" class="on">Product</button><button data-m="agent">Agent</button></div>
+    <div class="cosel">
+      <span class="lbl">Company</span>
+      <select class="field" id="gco"></select>
+      <button class="btn btn-ghost" id="addco" style="min-height:38px" title="Onboard a new company">+ Add</button>
+    </div>
+    <button class="iconbtn" id="theme" title="Theme">◐</button>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-s="classify" class="on">Ask</button>
+    <button data-s="runs">Runs</button>
+    <button data-s="recommender">Recommender</button>
+    <button data-s="segments">Segments</button>
+    <button data-s="peers">Peer groups</button>
+    <button data-s="coldstart">Cold-start</button>
+    <button data-s="validation">Validation</button>
+    <button data-s="outlets">Outlet lookup</button>
+  </nav>
+</div></header>
+<main class="wrap"><div id="view"></div></main>
+<div class="overlay" id="ov"><div class="card modal">
+  <div class="modalh"><div id="mh"></div><button class="iconbtn" onclick="closeM()">✕</button></div>
+  <div class="modalb" id="mb"></div>
+</div></div>
+<div class="card toast" id="toast"></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const api=(p,o)=>fetch('/api'+p,o).then(r=>r.json());
+const post=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=(n,d=0)=>n==null?'–':Number(n).toLocaleString('en-IN',{maximumFractionDigits:d});
+const pct=n=>n==null?'–':Math.round(n*100)+'%';
+const TC={T1:'var(--pitch)',T2:'var(--sky)',T3:'var(--amber)',T4:'var(--cherry)'};
+const tpill=t=>`<span class="tier ${t||'prov'}">${t||'cold'}</span>`;
+const LEV=[['range','SKUs / bill'],['cadence','ordering rhythm'],['recency','freshness'],['value','basket value']];
+const AXLBL={channel:'Channel',format:'Format (shop type)',region:'Region',affluence:'Affluence tier',density:'Catchment density'};
+const FITS=[['fit_premium_launch','Premium launch'],['fit_volume_scheme','Volume scheme'],['fit_assortment_expansion','Distribution / breadth'],['fit_retention','Retention'],['fit_reactivation','Reactivation']];
+const ALL='__all';
+let SUM=null, COMPS=[], REG={};
+let ST={company:ALL,sec:'classify',weights:null,proposed:null,reasons:{},run:null,prevTiers:null,text:'',rf:{region:'',tier:'',format:''},regions:[],agentMode:false};
+const AG={tab:'API',man:'agent.json'};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200)};
+const setT=t=>{document.documentElement.classList.toggle('light',t==='light');localStorage.iris_t=t};
+setT(localStorage.iris_t||'dark');
+$('#theme').onclick=()=>setT(document.documentElement.classList.contains('light')?'dark':'light');
+
+/* company scope helpers */
+const CO=()=>ST.company===ALL?null:ST.company;
+const coLabel=()=>ST.company===ALL?'all companies (supervisor)':ST.company;
+const supervisor=()=>ST.company===ALL;
+const regionsFor=()=>ST.company===ALL?[...new Set(COMPS.flatMap(c=>c.regions||[]))].sort():(REG[ST.company]||[]);
+const regOpts=(sel)=>`<option value="">All regions</option>`+regionsFor().map(r=>`<option${r===sel?' selected':''}>${esc(r)}</option>`).join('');
+const wpills=w=>LEV.map(([k,l])=>`<span class="wpill">${l.split(' ')[0]} <b>${Math.round((w[k]||0)*100)}%</b></span>`).join('');
+const wmini=w=>`<span class="wpill" style="white-space:nowrap" title="range · cadence · recency · value">R<b>${Math.round((w.range||0)*100)}</b> C<b>${Math.round((w.cadence||0)*100)}</b> F<b>${Math.round((w.recency||0)*100)}</b> V<b>${Math.round((w.value||0)*100)}</b></span>`;
+
+/* nav */
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;show(b.dataset.s)};
+$('#addco').onclick=openAddCompany;
+function setMode(m){document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x.dataset.m===m))}
+$('#mode').onclick=e=>{const b=e.target.closest('button');if(!b)return;setMode(b.dataset.m);
+  if(b.dataset.m==='agent'){ST.agentMode=true;renderAgent()} else {ST.agentMode=false;show(ST.sec||'classify')}};
+function setTab(s){document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.s===s))}
+function show(s){ST.sec=s;ST.agentMode=false;setMode('product');setTab(s);location.hash=s;
+  ({classify:renderClassify,run:renderRunView,runs:renderRuns,recommender:renderRec,segments:renderSegments,
+    peers:renderPeers,coldstart:renderCold,validation:renderVal,outlets:renderOutlets}[s]||renderClassify)()}
+function gotab(s){show(s)}
+
+/* global company change */
+function buildCoSelect(){
+ $('#gco').innerHTML=COMPS.map(c=>`<option value="${esc(c.company)}"${c.company===ST.company?' selected':''}>${esc(c.company)}</option>`).join('')
+   +`<option value="${ALL}"${ST.company===ALL?' selected':''}>▸ All companies · supervisor</option>`;
+ $('#gco').onchange=()=>{ST.company=$('#gco').value; ST.rf={region:'',tier:'',format:''}; ST.regions=[];
+   if(ST.sec==='run'){show('classify')} else {show(ST.sec)}};
+}
+
+/* ---------- CLASSIFY ---------- */
+const EX=["Launch a new premium SKU","Push volume with a trade scheme","Win back lapsing outlets","Widen distribution where breadth is low","Protect and grow my best outlets"];
+function renderClassify(){
+ setTab('classify');
+ $('#view').innerHTML=`
+  <h1 class="hero">What do you want to do with your outlets?</h1>
+  <p class="lead">Describe the play in plain words. The grader weights the parameters that matter, checks the weighting is not just re-ranking by size, and returns the outlets to act on — with how to move each one up a tier. It grades <b>${esc(coLabel())}</b> within its segment (<span class="link" onclick="gotab('segments')">${(SUM.peer_axes||[]).map(a=>AXLBL[a]||a).join(' · ')}</span>).</p>
+  <div class="card pad">
+    <textarea class="field" id="mtext" placeholder="e.g. Launch a new premium SKU in the metro kirana outlets">${esc(ST.text||'')}</textarea>
+    <div class="row" style="margin:14px 0">${EX.map(e=>`<span class="chipbtn ex">${e}</span>`).join('')}</div>
+    <div class="row" style="margin:0 0 14px;align-items:flex-start">
+      <span class="mut" style="padding-top:7px;min-width:58px">Regions</span>
+      <div class="row" id="mregions" style="gap:6px;flex:1">
+        <span class="chipbtn rc ${!ST.regions.length?'on':''}" data-r="">All regions</span>
+        ${regionsFor().map(r=>`<span class="chipbtn rc ${ST.regions.includes(r)?'on':''}" data-r="${esc(r)}">${esc(r)}</span>`).join('')}
+      </div>
+    </div>
+    <div class="row between">
+      <span class="mut">Grading <b style="color:rgb(var(--fg)/.8)">${esc(coLabel())}</b> — change the company in the top bar</span>
+      <button class="btn btn-primary" id="go">Profile outlets →</button>
+    </div>
+  </div>`;
+ document.querySelectorAll('.ex').forEach(c=>c.onclick=()=>{$('#mtext').value=c.textContent;runMission()});
+ document.querySelectorAll('.rc').forEach(c=>c.onclick=()=>{const r=c.dataset.r;
+   if(!r){ST.regions=[]} else {const i=ST.regions.indexOf(r);if(i>=0)ST.regions.splice(i,1);else ST.regions.push(r)}
+   document.querySelectorAll('.rc').forEach(x=>x.classList.toggle('on',x.dataset.r?ST.regions.includes(x.dataset.r):!ST.regions.length))});
+ $('#go').onclick=()=>runMission();
+}
+
+async function runMission(weights){
+ const text=$('#mtext')?$('#mtext').value.trim():ST.text; if(!text){toast('Describe the play first');return} ST.text=text;
+ const rerun=!!weights;
+ if(rerun&&ST.run)ST.prevTiers={...(ST.run.tier_distribution||{})};
+ $('#view').innerHTML=`<div class="spin">${rerun?'Re-grading every outlet under your new weights…':'Reading the mission, weighting the parameters and grading every outlet…'}</div>`;
+ ST.sec='run';setTab('classify');location.hash='run';
+ const body={text,company:CO(),limit:120};
+ if(ST.regions.length)body.regions=ST.regions;
+ if(weights){body.weights=weights;body.adjust_reasons=ST.reasons}
+ const r=await post('/mission',body);
+ ST.run=r; ST.weights={...r.weights}; ST.proposed={...r.weights}; if(!weights){ST.reasons={};ST.prevTiers=null}
+ ST.rf={region:'',tier:'',format:''};
+ renderRunView();
+ openRunSummary(rerun);
+}
+
+/* ---------- RUN VIEW (dedicated) ---------- */
+function renderRunView(){
+ const r=ST.run; if(!r){show('classify');return}
+ ST.sec='run';location.hash='run';document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));
+ if(!ST.weights)ST.weights={...r.weights}; if(!ST.proposed)ST.proposed={...r.weights};
+ const g=r.guard, gc=g.safe?(g.size_correlation<0.35?'ok':'warn'):'bad';
+ const td=r.tier_distribution||{},tot=Object.values(td).reduce((a,b)=>a+b,0)||1;
+ const stack=['T1','T2','T3','T4'].map(k=>`<span style="width:${100*(td[k]||0)/tot}%;background:${TC[k]}" title="${k} ${td[k]||0}"></span>`).join('');
+ $('#view').innerHTML=`
+  <div class="runhd">
+   <div>
+    <button class="backlink" onclick="startNewRun()">‹ New run</button>
+    <div class="kick" style="margin-top:8px">Run ${r.run_id} · grading ${esc(r.company||'all companies')}</div>
+    <div style="font-size:21px;font-weight:800;letter-spacing:-.01em;margin-top:4px">${esc(r.mission)}</div>
+    <div class="row" style="margin-top:8px"><span class="tier T2">${esc(r.label)}</span>${r.reasoning_mode?`<span class="tier ${r.reasoning_mode==='reasoning'?'prov':'T1'}" title="${r.reasoning_mode==='reasoning'?'parsed by the LLM lens — your words interpreted into weights &amp; filters':'matched by deterministic keyword rules'}">${esc(r.reasoning_mode)}</span>`:''}<span class="mut">${esc(r.interpretation)}</span></div>
+   </div>
+   <div style="min-width:250px"><div class="kick" style="margin-bottom:6px">Tier split · ${fmt(tot)} graded</div>
+    <div class="stackbar">${stack}</div>
+    <div class="legend">${['T1','T2','T3','T4'].map(k=>`<span><i style="background:${TC[k]}"></i>${k} ${fmt(td[k]||0)}</span>`).join('')}</div></div>
+  </div>
+  <div class="callout ${gc}" style="margin-bottom:16px"><span>${g.safe?'✓':'⚠'}</span><div><b>Size-bias guard:</b> ${esc(g.message)} <span class="mut">(grade↔size = ${g.size_correlation})</span></div></div>
+  <div class="card pad">
+   <div class="row between"><div class="kick">Parameter weights — this is what the tier is computed from</div><span class="mut">drag, note why, then re-grade</span></div>
+   <div class="wgrid" id="wgrid"></div>
+   <div id="reasonwrap"></div>
+   <div class="row" style="margin-top:14px"><button class="btn btn-primary" id="rerun">Apply &amp; re-grade</button>
+    <button class="btn btn-ghost" id="resetw" style="min-height:40px">Reset to suggested</button>
+    <span class="mut">recomputes tiers from cached peer frontiers — no data re-pull</span></div>
+  </div>
+  <div class="row between" style="margin:26px 2px 12px">
+   <div><div class="kick">Outlets to act on</div><div class="mut">${fmt(r.n_candidates)} in ${(r.target_tiers||[]).join(' / ')} · ${esc(r.target_note||'')}</div></div>
+   <div class="row" id="runflt"></div>
+  </div>
+  <div id="runlist"></div>`;
+ renderWeights(r);
+ $('#rerun').onclick=()=>runMission(ST.weights);
+ $('#resetw').onclick=()=>{ST.weights={...ST.proposed};ST.reasons={};renderWeights(r)};
+ renderRunFilters();
+ drawRunList();
+}
+function startNewRun(){ST.run=null;ST.weights=null;ST.proposed=null;ST.reasons={};ST.prevTiers=null;show('classify')}
+
+function renderRunFilters(){
+ const r=ST.run;
+ // tiers offered = every actionable tier (true candidate counts), not just the
+ // tiers on the shown page — so the filter matches the run's real scope.
+ const tc=r.tier_candidates||{};
+ const tiers=Object.keys(tc).length?Object.keys(tc).sort():[...new Set((r.targets||[]).map(t=>t.tier_w))].sort();
+ const fmts=[...new Set((r.targets||[]).map(t=>t.format))].sort();
+ $('#runflt').innerHTML=`
+   <select class="field" id="rf_reg"><option value="">All regions</option>${regionsFor().map(x=>`<option${x===ST.rf.region?' selected':''}>${esc(x)}</option>`).join('')}</select>
+   <select class="field" id="rf_tier"><option value="">All tiers</option>${tiers.map(t=>`<option value="${t}"${t===ST.rf.tier?' selected':''}>${t}${tc[t]?' ('+fmt(tc[t])+')':''}</option>`).join('')}</select>
+   <select class="field" id="rf_fmt"><option value="">All formats</option>${fmts.map(f=>`<option${f===ST.rf.format?' selected':''}>${esc(f)}</option>`).join('')}</select>`;
+ $('#rf_reg').onchange=e=>{ST.rf.region=e.target.value;drawRunList()};
+ $('#rf_tier').onchange=e=>{ST.rf.tier=e.target.value;drawRunList()};
+ $('#rf_fmt').onchange=e=>{ST.rf.format=e.target.value;drawRunList()};
+}
+function drawRunList(){
+ const r=ST.run;let ts=(r.targets||[]).slice();
+ if(ST.rf.region)ts=ts.filter(t=>t.regionname===ST.rf.region);
+ if(ST.rf.tier)ts=ts.filter(t=>t.tier_w===ST.rf.tier);
+ if(ST.rf.format)ts=ts.filter(t=>t.format===ST.rf.format);
+ $('#runlist').innerHTML=`<div class="mut" style="margin:0 2px 10px">Showing ${ts.length} of ${(r.targets||[]).length} outlets to act on — ranked by opportunity (most headroom to move up first). The tier split up top is the full book; this list is the actionable subset, so it won't include every tier. Click one for its grade-vector and how to move it up.</div>
+  <div class="tablewrap"><table><thead><tr><th>Outlet</th>${supervisor()?'<th>Company</th>':''}<th>Region</th><th>Format</th><th>Tier</th><th>RI</th><th>SKU/bill</th><th>Cadence</th><th>Recency</th><th>Returns</th></tr></thead><tbody>
+   ${ts.map(t=>`<tr class="clk" onclick='openOutlet(${t.outletid})'><td class="oid">#${t.outletid}</td>${supervisor()?`<td class="mut">${esc((t.company_name||'').slice(0,14))}</td>`:''}<td>${esc(t.regionname||'')}</td><td>${esc(t.format)}</td><td>${tpill(t.tier_w)}</td>
+    <td class="num">${(t.RI_w??0).toFixed(2)}</td><td class="num">${(t.range_intensity??0).toFixed(1)}</td><td class="num">${(t.cadence??0).toFixed(2)}</td><td class="num">${t.recency==null?'–':fmt(t.recency)}</td>
+    <td class="num">${t.return_rate==null?'–':Math.round(t.return_rate*100)+'%'}</td></tr>`).join('')||`<tr><td colspan="10" class="mut" style="padding:22px;text-align:center">No outlets match these filters.</td></tr>`}</tbody></table></div>`;
+}
+function renderWeights(r){
+ $('#wgrid').innerHTML=LEV.map(([k,lbl])=>`<div>
+   <div class="wrowh"><span>${lbl}</span><span class="num" id="wv_${k}">${Math.round((ST.weights[k]||0)*100)}%</span></div>
+   <input type="range" min="0" max="100" value="${Math.round((ST.weights[k]||0)*100)}" data-k="${k}">
+   <div class="why">${esc(r.why[k]||'')}</div></div>`).join('');
+ $('#wgrid').oninput=e=>{const k=e.target.dataset.k;ST.weights[k]=(+e.target.value)/100;$('#wv_'+k).textContent=e.target.value+'%';refreshReasons()};
+ refreshReasons();
+}
+function refreshReasons(){
+ const changed=LEV.map(([k])=>k).filter(k=>Math.round((ST.weights[k]||0)*100)!==Math.round((ST.proposed[k]||0)*100));
+ if(!changed.length){$('#reasonwrap').innerHTML='';return}
+ $('#reasonwrap').innerHTML=`<div class="reasonbox"><div style="font-weight:700;font-size:13.5px;margin-bottom:8px">You changed the weighting — note why (logged with the run, and sent back to the supervisor as the audit trail)</div>
+   ${changed.map(k=>`<div class="formrow" style="margin-bottom:9px"><label>Why ${(LEV.find(l=>l[0]===k)||[])[1]}?</label><input class="field" data-rk="${k}" value="${esc(ST.reasons[k]||'')}" placeholder="e.g. this launch is value-led, breadth matters less"></div>`).join('')}</div>`;
+ $('#reasonwrap').oninput=e=>{if(e.target.dataset.rk)ST.reasons[e.target.dataset.rk]=e.target.value};
+}
+
+/* post-run summary overlay */
+function openRunSummary(rerun){
+ const r=ST.run;const g=r.guard;const td=r.tier_distribution||{};const tot=Object.values(td).reduce((a,b)=>a+b,0)||1;
+ let movement='';
+ if(rerun&&ST.prevTiers){
+   movement=`<div class="kick" style="margin-top:16px">What re-weighting moved</div><div class="row" style="margin-top:8px">${['T1','T2','T3','T4'].map(k=>{const a=ST.prevTiers[k]||0,b=td[k]||0,d=b-a;return `<span class="deltapill ${d>0?'up':d<0?'dn':''}">${k} ${fmt(a)}→${fmt(b)}${d?` (${d>0?'+':''}${d})`:''}</span>`}).join('')}</div>
+     <div class="mut" style="margin-top:8px">Instant because peer frontiers are cached — only the weighted tier was recomputed, no data pull.</div>`;
+ }
+ const stack=['T1','T2','T3','T4'].map(k=>`<span style="width:${100*(td[k]||0)/tot}%;background:${TC[k]}"></span>`).join('');
+ const gc=g.safe?(g.size_correlation<0.35?'ok':'warn'):'bad';
+ $('#mh').innerHTML=`<div><div style="font-size:16px;font-weight:800">${rerun?'Re-graded under your weights':'Grading complete'}</div><div class="mut">${esc(r.mission)} · ${esc(r.company||'all companies')}</div></div>`;
+ $('#mb').innerHTML=`
+   <div class="row" style="gap:8px;margin-bottom:14px">${wpills(r.weights)}</div>
+   <div class="callout ${gc}"><span>${g.safe?'✓':'⚠'}</span><div>${esc(g.message)}</div></div>
+   <div class="kick" style="margin-top:16px">Tier split · ${fmt(tot)} outlets graded</div>
+   <div class="stackbar" style="margin-top:8px">${stack}</div>
+   <div class="legend">${['T1','T2','T3','T4'].map(k=>`<span><i style="background:${TC[k]}"></i>${k} ${fmt(td[k]||0)} (${pct((td[k]||0)/tot)})</span>`).join('')}</div>
+   ${movement}
+   <div class="callout info" style="margin-top:16px"><span>➜</span><div><b>${fmt(r.n_candidates)} outlets to act on</b> in ${(r.target_tiers||[]).join(' / ')} — ${esc(r.target_note||'')}</div></div>
+   <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="closeM();document.getElementById('runlist').scrollIntoView({behavior:'smooth'})">See the outlets in detail →</button>`;
+ $('#ov').classList.add('show');
+}
+
+/* ---------- RUNS (transactional log) ---------- */
+async function renderRuns(){
+ $('#view').innerHTML='<h2 class="sec">Runs</h2><p class="lead">Every classification run — the record that goes back to the supervisor. Each row is one graded mission with its weights and guard result. Open one to reload it.</p><div id="rl" class="spin">loading…</div>';
+ const d=await api('/runs');const rs=d.runs||[];
+ if(!rs.length){$('#rl').outerHTML='<div class="card pad mut" id="rl">No runs yet — go to <span class="link" onclick="gotab(\'classify\')">Ask</span> and run a mission.</div>';return}
+ $('#rl').outerHTML=`<div class="tablewrap" id="rl"><table><thead><tr><th>When</th><th>Mission</th><th>Company</th><th>Play</th><th>Weights</th><th>Guard</th><th>Targets</th><th></th></tr></thead><tbody>
+  ${rs.map(r=>{const gd=r.guard_safe===false?'<span class="tier T4">re-checks size</span>':r.guard_safe===true?'<span class="tier T1">safe</span>':'<span class="mut">–</span>';
+   return `<tr class="clk" onclick="openRun('${r.run_id}')"><td class="mut" style="white-space:nowrap">${esc((r.computed_at||'').replace('T',' ').slice(0,16))}</td>
+    <td style="max-width:280px">${esc(r.mission||'')}${r.edited?' <span class="tier prov">edited</span>':''}</td>
+    <td class="mut">${esc(r.company||'all')}</td><td><span class="tier T2">${esc(r.label||r.archetype||'')}</span></td>
+    <td>${r.weights?wmini(r.weights):'<span class="mut">–</span>'}</td>
+    <td>${gd}</td><td class="num">${fmt(r.n_candidates)}</td><td class="link">open ›</td></tr>`}).join('')}</tbody></table></div>`;
+}
+async function openRun(id){const r=await api('/run/'+id);ST.run=r;ST.text=r.mission;ST.weights={...r.weights};ST.proposed={...r.weights};ST.reasons=r.adjust_reasons||{};ST.prevTiers=null;ST.rf={region:'',tier:'',format:''};
+ renderRunView();}
+
+/* ---------- SEGMENTS ---------- */
+let SEGPREV=null;
+async function renderSegments(){
+ const cur=SUM.peer_axes||[];const opts=SUM.axis_options||[];const v=SUM.validation||{};
+ SEGPREV={n_peers:(SUM.totals||{}).peers,decorrelation:v.decorrelation_RI_vs_logsize,axes:cur.slice(),breaches:v.companies_over_guard||[]};
+ const co=CO();
+ const myPeers=co?((SUM.companies||[]).find(c=>c.company_name===co)||{}).peers ?? SEGPREV.n_peers : SEGPREV.n_peers;
+ const myDec=co?((v.per_company_decorrelation||{})[co] ?? SEGPREV.decorrelation):SEGPREV.decorrelation;
+ const curMode=(SUM.seg_modes||{})[co]||'text';
+ $('#view').innerHTML=`<h2 class="sec">Segments</h2>
+  <p class="lead">A segment is the peer group each outlet is compared within. You can define it two ways: from <b>text attributes</b> (shop-type &amp; channel from the master data) or from <b>storefront photos</b> (each outlet classified from its image). Photos give finer, size-neutral peers; text is capped at 6 groups.</p>
+  ${co?`<div class="card pad" style="margin-bottom:14px">
+   <div class="kick">Segment ${esc(co)} on</div>
+   <div class="row" id="smode" style="gap:6px;margin:10px 0">
+     <span class="chipbtn sm ${curMode==='text'?'on':''}" data-m="text">Text attributes</span>
+     <span class="chipbtn sm ${curMode==='image'?'on':''}" data-m="image">Storefront photos</span>
+     <span class="chipbtn sm ${curMode==='both'?'on':''}" data-m="both">Both</span>
+   </div>
+   <div class="mut">Currently: <b>${curMode}</b>. Switching to photos classifies each outlet from its storefront image (needs photos on file) and re-grades.</div>
+   <div id="smout" style="margin-top:12px"></div>
+  </div>`:'<div class="callout info" style="margin-bottom:14px"><span>ⓘ</span><div>Pick a single company in the top bar to switch how it is segmented (text vs storefront photos).</div></div>'}
+  <div class="card pad">
+   <div class="row between"><div class="kick">Peer axes${co?' · '+esc(co):''}</div><span class="mut">${fmt(myPeers)} peer groups${co?'':' (all companies)'} · grade↔size ${myDec}</span></div>
+   <div class="row" style="margin:12px 0">${opts.map(a=>`<span class="chipbtn ax ${cur.includes(a)?'on':''}" data-a="${a}">${AXLBL[a]||a}</span>`).join('')}</div>
+   <div class="mut" style="margin-bottom:12px">channel + format are always the base; toggle the geo / affluence / density axes above. Applies across all companies.</div>
+   <button class="btn btn-primary" id="reseg">Re-segment &amp; re-grade</button>
+   <div id="segout" style="margin-top:16px"></div>
+  </div>`;
+ if(co)document.querySelectorAll('.sm').forEach(c=>c.onclick=()=>changeSegMode(co,c.dataset.m,curMode));
+ const sel=new Set(cur);
+ document.querySelectorAll('.ax').forEach(c=>c.onclick=()=>{const a=c.dataset.a;
+   if(a==='channel'||a==='format')return; c.classList.toggle('on');c.classList.contains('on')?sel.add(a):sel.delete(a)});
+ $('#reseg').onclick=async()=>{
+   $('#segout').innerHTML='<div class="spin">Re-building peer groups and re-grading every outlet across all companies…</div>';
+   const axes=opts.filter(a=>sel.has(a)||a==='channel'||a==='format');
+   const d=await post('/resegment',{axes});
+   SUM=await api('/summary');COMPS=(await api('/companies')).companies;REG={};COMPS.forEach(c=>REG[c.company]=c.regions);
+   const gc=d.guard_pass?(d.decorrelation<0.35?'ok':'warn'):'bad';
+   const dp=(a,b)=>{const s=(b-a);return `<span class="deltapill ${s>0?'dn':s<0?'up':''}">${a}→${b}</span>`};
+   $('#segout').innerHTML=`<div class="callout ${gc}"><span>${d.guard_pass?'✓':'⚠'}</span><div>
+      Re-segmented on <b>${d.axes.map(a=>AXLBL[a]||a).join(' · ')}</b>.
+      Peer groups ${fmt(SEGPREV.n_peers)}→<b>${fmt(d.n_peers)}</b> · grade↔size ${dp(SEGPREV.decorrelation,d.decorrelation)}
+      ${d.companies_over_guard.length?`· breaches: <b>${d.companies_over_guard.join(', ')}</b>`:'· all companies clear 0.50'}.
+     </div></div>
+     <div class="callout info" style="margin-top:12px"><span>➜</span><div>Every section now grades on these peers. <span class="link" onclick="gotab('outlets')">View the re-graded outlets →</span> or <span class="link" onclick="gotab('peers')">see the new peer groups →</span></div></div>`;
+   toast('Re-segmented — all sections now use the new peers');
+ };
+}
+
+async function changeSegMode(co,mode,cur){
+ if(mode===cur)return;
+ const lbl={text:'text attributes',image:'storefront photos',both:'photos + attributes'}[mode];
+ $('#smout').innerHTML=`<div class="spin">Re-segmenting ${esc(co)} on ${lbl}…</div>`;
+ const d=await post('/company/segmode',{company:co,mode});
+ if(d.async){
+   const tick=async()=>{const j=await api('/company/job/'+d.job_id);
+     if(j.status==='running'){const p=j.phase==='typing'?` · ${fmt(j.processed||0)}/${fmt(j.total||0)} photos`:'';
+       $('#smout').innerHTML=`<div class="callout info"><span>⏳</span><div>${esc(j.message||'working…')}${p}</div></div>`;setTimeout(tick,1000)}
+     else if(j.status==='failed'){$('#smout').innerHTML=`<div class="callout bad"><span>⚠</span><div>${esc(j.message||'failed')}</div></div>`}
+     else{await refreshSeg(co,j.result||{})}};
+   tick();return;
+ }
+ if(d.detail){$('#smout').innerHTML=`<div class="callout bad"><span>⚠</span><div>${esc(d.detail)}</div></div>`;return}
+ await refreshSeg(co,d);
+}
+async function refreshSeg(co,r){
+ SUM=await api('/summary');COMPS=(await api('/companies')).companies;REG={};COMPS.forEach(c=>REG[c.company]=c.regions);
+ toast(co+' re-segmented');renderSegments();
+ if($('#smout'))$('#smout').innerHTML=`<div class="callout ok"><span>✓</span><div>Re-segmented <b>${esc(co)}</b> on <b>${esc(r.seg_mode||'')}</b> — ${fmt(r.peers)} peer groups${r.images_typed?`, ${fmt(r.images_typed)} photos classified`:''}.</div></div>`;
+}
+
+/* ---------- RECOMMENDER ---------- */
+let RC={action:'premium_launch',tiers:new Set(),region:'',fmt:''};
+function renderRec(){
+ const acts=SUM.actions||{};
+ $('#view').innerHTML=`<h2 class="sec">Launch recommender</h2><p class="lead">Pick a play and get a ranked, reasoned target list for <b>${esc(coLabel())}</b>. (Ask does the same from plain English — this is the direct-control version.)</p>
+  <div class="card pad"><div class="kick">Play</div><div class="row" style="margin:10px 0">${Object.entries(acts).map(([k,v])=>`<span class="chipbtn act ${k===RC.action?'on':''}" data-a="${k}">${v.label}</span>`).join('')}</div>
+   <div id="acthint" class="mut" style="margin-bottom:12px"></div>
+   <div class="controls" style="margin-bottom:0">
+    <select class="field" id="rreg">${regOpts(RC.region)}</select>
+    <select class="field" id="rfmt"><option value="">All formats</option>${(SUM.formats||[]).map(f=>`<option${f===RC.fmt?' selected':''}>${esc(f)}</option>`).join('')}</select>
+    ${['T1','T2','T3','T4'].map(t=>`<span class="chipbtn tf ${RC.tiers.has(t)?'on':''}" data-t="${t}">${t}</span>`).join('')}
+    <button class="btn btn-primary" id="rgo">Recommend</button></div></div>
+  <div id="rres" style="margin-top:20px"></div>`;
+ const hint=()=>{const a=acts[RC.action];$('#acthint').innerHTML=`<b>${a.label}.</b> ${esc(a.rationale)}`};hint();
+ document.querySelectorAll('.act').forEach(c=>c.onclick=()=>{document.querySelectorAll('.act').forEach(x=>x.classList.remove('on'));c.classList.add('on');RC.action=c.dataset.a;hint()});
+ document.querySelectorAll('.tf').forEach(c=>c.onclick=()=>{c.classList.toggle('on');c.classList.contains('on')?RC.tiers.add(c.dataset.t):RC.tiers.delete(c.dataset.t)});
+ $('#rgo').onclick=recRun; recRun();
+ async function recRun(){
+  RC.region=$('#rreg').value;RC.fmt=$('#rfmt').value;
+  const q=new URLSearchParams({action:RC.action,limit:'60'});
+  if(CO())q.set('company',CO());if(RC.region)q.set('region',RC.region);if(RC.fmt)q.set('fmt',RC.fmt);
+  if(RC.tiers.size)q.set('tiers',[...RC.tiers].join(','));
+  $('#rres').innerHTML='<div class="spin">scoring…</div>';
+  const d=await api('/recommend?'+q);
+  $('#rres').innerHTML=`<div class="kick" style="margin-bottom:8px">${d.label} — ${fmt(d.n_candidates)} eligible, top ${d.targets.length}${d.excluded_thin?` · ${fmt(d.excluded_thin)} thin excluded`:''}</div>
+   <div class="tablewrap"><table><thead><tr><th>#</th><th>Outlet</th>${supervisor()?'<th>Company</th>':''}<th>Region</th><th>Format</th><th>Tier</th><th>Fit</th><th>Why</th></tr></thead><tbody>
+   ${d.targets.map((t,i)=>`<tr class="clk" onclick='openOutlet(${t.outletid})'><td class="mut">${i+1}</td><td class="oid">#${t.outletid}</td>${supervisor()?`<td>${esc((t.company_name||'').slice(0,14))}</td>`:''}<td>${esc(t.regionname||'')}</td><td>${esc(t.format)}</td><td>${tpill(t.tier)}</td><td class="num">${Math.round(t.target_score*100)}</td><td class="mut">${esc(t.reason)}</td></tr>`).join('')}
+   </tbody></table></div>`;
+ }
+}
+
+/* ---------- OUTLET LOOKUP ---------- */
+function renderOutlets(){
+ $('#view').innerHTML=`<h2 class="sec">Outlet lookup</h2><p class="lead">Inspect individual outlets for <b>${esc(coLabel())}</b>. Tiers here use the <b>default balanced weighting</b> — to re-tier under a specific play, run it in <span class="link" onclick="gotab('classify')">Ask</span>. Open any outlet for its grade-vector (how good it is for each play).</p>
+  <div class="controls">
+   <select class="field" id="oreg">${regOpts('')}</select>
+   <select class="field" id="otier"><option value="">All tiers</option><option>T1</option><option>T2</option><option>T3</option><option>T4</option></select>
+   <select class="field" id="ofmt"><option value="">All formats</option>${(SUM.formats||[]).map(f=>`<option>${esc(f)}</option>`).join('')}</select>
+   <select class="field" id="odata"><option value="">Selling + cold-start</option><option value="true">Selling only</option><option value="false">Cold-start only</option></select>
+   <span class="mut" id="ocount"></span></div>
+  <div id="otbl" class="spin">loading…</div>`;
+ [$('#oreg'),$('#otier'),$('#ofmt'),$('#odata')].forEach(x=>x.onchange=load); load();
+ async function load(){
+  const q=new URLSearchParams({limit:'300'});
+  if(CO())q.set('company',CO());if($('#oreg').value)q.set('region',$('#oreg').value);if($('#otier').value)q.set('tier',$('#otier').value);if($('#odata').value)q.set('has_data',$('#odata').value);
+  const d=await api('/outlets?'+q);let outs=d.outlets;const fm=$('#ofmt').value;if(fm)outs=outs.filter(o=>o.format===fm);
+  $('#ocount').textContent=`${fmt(d.total)} match · showing ${outs.length}`;
+  $('#otbl').outerHTML=`<div class="tablewrap" id="otbl"><table><thead><tr><th>Outlet</th>${supervisor()?'<th>Company</th>':''}<th>Region</th><th>Format</th><th>Tier</th><th>RI</th><th>SKU/bill</th><th>Cadence</th><th>Recency</th><th>Returns</th></tr></thead><tbody>
+   ${outs.map(o=>`<tr class="clk" onclick='openOutlet(${o.outletid})'><td class="oid">#${o.outletid}</td>${supervisor()?`<td>${esc((o.company_name||'').slice(0,13))}</td>`:''}<td>${esc(o.regionname||'')}</td><td>${esc(o.format)}</td>
+    <td>${o.has_data?tpill(o.tier)+(o.confidence==='low'?' <span class="tier prov">thin</span>':''):tpill(null)}</td>
+    <td class="num">${o.RI==null?'–':o.RI.toFixed(2)}</td><td class="num">${o.range_intensity==null?'–':o.range_intensity.toFixed(1)}</td>
+    <td class="num">${o.cadence==null?'–':o.cadence.toFixed(2)}</td><td class="num">${o.recency==null?'–':fmt(o.recency)}</td>
+    <td class="num">${o.return_rate==null?'–':Math.round(o.return_rate*100)+'%'}</td></tr>`).join('')}</tbody></table></div>`;
+ }
+}
+
+/* ---------- PEERS ---------- */
+async function renderPeers(){
+ const co=CO();
+ $('#view').innerHTML=`<h2 class="sec">Peer groups</h2>
+  <p class="lead">Every outlet is graded only within its peer group. Peers for <b>${esc(coLabel())}</b>, defined by <b>${(SUM.peer_axes||[]).map(a=>AXLBL[a]||a).join(' · ')}</b>. <span class="link" onclick="gotab('segments')">Change the definition →</span></p>
+  <div class="mut" id="pc" style="margin-bottom:12px"></div><div id="ptbl" class="spin">loading…</div>`;
+ const d=await api('/peers'+(co?`?company=${encodeURIComponent(co)}`:''));
+ $('#pc').textContent=`${d.n} peer groups (≥5 outlets)`;
+ $('#ptbl').outerHTML=`<div class="tablewrap" id="ptbl"><table><thead><tr>${supervisor()?'<th>Company</th>':''}<th>Peer</th><th>Outlets</th><th>Avg RI</th><th>T1</th><th>T4</th><th>SKU frontier</th><th>Cadence frontier</th><th>Basket ₹</th></tr></thead><tbody>
+   ${d.peers.map(p=>`<tr>${supervisor()?`<td class="mut">${esc(p.company_name.slice(0,15))}</td>`:''}<td>${esc(p.peer)}</td><td class="num">${fmt(p.n)}</td><td class="num">${p.avg_RI}</td><td><span class="tier T1">${p.t1}</span></td><td><span class="tier T4">${p.t4}</span></td><td class="num">${p.front_range}</td><td class="num">${p.front_cadence}</td><td class="num">${fmt(p.basket)}</td></tr>`).join('')||`<tr><td colspan="9" class="mut" style="padding:22px;text-align:center">No peer groups of ≥5 outlets for this company.</td></tr>`}</tbody></table></div>`;
+}
+
+/* ---------- COLD-START ---------- */
+async function renderCold(){
+ $('#view').innerHTML='<div class="spin">loading…</div>';
+ const co=CO();const d=await api('/coldstart'+(co?`?company=${encodeURIComponent(co)}`:''));
+ const pd=d.potential_distribution||{};const order=['high','medium','low','unknown'];
+ const col={high:'var(--pitch)',medium:'var(--sky)',low:'var(--amber)',unknown:'rgb(var(--fg)/.3)'};
+ let sample=d.sample||[];
+ $('#view').innerHTML=`<h2 class="sec">Cold-start</h2><p class="lead">Outlets with no sales history — graded off similar outlets across companies. A potential band, never a realisation tier.</p>
+  <div class="grid g-stat">
+   <div class="card pad stat"><div class="kick">No-data outlets</div><div class="big">${fmt(d.n_nodata)}</div></div>
+   <div class="card pad stat"><div class="kick">Genuine cross-company</div><div class="big" style="color:var(--pitch-ink)">${d.cross_company_match_rate_pct}%</div><div class="mut">${fmt(d.n_own_company_only)} rest on own-company only</div></div>
+   <div class="card pad stat"><div class="kick">Method</div><div style="font-weight:700;margin-top:8px">Peer-tuple transfer</div><div class="mut">channel·format → network frontier → potential</div></div></div>
+  <div class="card pad" style="margin-top:16px"><div class="kick">Potential bands</div><div style="margin-top:10px">
+   ${order.filter(k=>pd[k]).map(k=>`<div class="barrow"><div class="barlab"><span>${k}</span><span class="num">${fmt(pd[k])}</span></div><div class="bar"><i style="width:${100*pd[k]/(d.n_nodata||1)}%;background:${col[k]}"></i></div></div>`).join('')}</div></div>
+  <div class="kick" style="margin:22px 2px 10px">Sample${co?` · ${esc(co)}`:''}</div><div class="tablewrap"><table><thead><tr><th>Outlet</th>${supervisor()?'<th>Company</th>':''}<th>Region</th><th>Peer-tuple</th><th>Potential</th><th>Companies</th></tr></thead><tbody>
+   ${sample.map(s=>`<tr><td class="oid">#${s.outletid}</td>${supervisor()?`<td class="mut">${esc((s.company_name||'').slice(0,13))}</td>`:''}<td>${esc(s.regionname||'')}</td><td>${esc(s.tuple_key)}</td><td><span class="tier ${s.potential==='high'?'T1':s.potential==='medium'?'T2':s.potential==='low'?'T3':'prov'}">${s.potential}</span></td><td class="num">${fmt(s.companies)}</td></tr>`).join('')||`<tr><td colspan="6" class="mut" style="padding:22px;text-align:center">No cold-start outlets for this company.</td></tr>`}</tbody></table></div>`;
+}
+
+/* ---------- VALIDATION ---------- */
+function renderVal(){
+ const v=SUM.validation,t=SUM.totals;const ok=v.guard_pass,every=v.guard_pass_every_company,br=v.companies_over_guard||[];
+ const levers=v.per_lever_vs_logsize||{},raw=v['raw_count_levers_vs_logsize (the trap)']||{},pc=v.per_company_decorrelation||{};
+ const bar=(l,val,c)=>`<div class="barrow"><div class="barlab"><span>${l}</span><span class="num">${val}</span></div><div class="bar"><i style="width:${Math.min(100,Math.abs(val)*100)}%;background:${c}"></i></div></div>`;
+ const co=CO();
+ const myPc=co?(pc[co]??null):v.decorrelation_RI_vs_logsize;
+ const myOk=myPc==null?ok:(myPc<=0.5);
+ const myComp=co?(SUM.companies||[]).find(c=>c.company_name===co):null;
+ $('#view').innerHTML=`<h2 class="sec">Does it work?</h2><p class="lead">The one test: is the grade secretly just ranking outlets by sales size? 0 = independent (good), 1 = it is the size grade again. Target under 0.50. Showing ${co?`for <b>${esc(co)}</b>`:'across every company (portfolio)'}.</p>
+  <div class="grid g-stat">
+   <div class="card pad stat"><div class="kick">Is-it-just-size${co?' · '+esc(co):''}</div><div class="big" style="color:${myOk?'var(--pitch-ink)':'var(--cherry-ink)'}">${myPc==null?'–':myPc}</div><div class="mut">${co?(myOk?'clears 0.50':'breaches 0.50 — residual size lean'):(every?'all companies clear 0.50':br.length+' company breaches ('+br.join(', ')+')')}</div></div>
+   ${co?'':`<div class="card pad stat"><div class="kick">Identical-sales divergence</div><div class="big">${v.identical_sales_divergence_pct}%</div><div class="mut">near-equal-sales → different tiers (>25% good)</div></div>`}
+   <div class="card pad stat"><div class="kick">Outlets graded</div><div class="big">${fmt(co?(myComp||{}).selling:t.selling)}</div><div class="mut">${co?((myComp||{}).peers+' peers'):(t.companies+' companies · '+t.peers+' peers')}</div></div>
+   ${co&&(myComp||{}).tier_distribution?`<div class="card pad stat"><div class="kick">Tier split</div><div class="row" style="margin-top:8px;gap:4px">${['T1','T2','T3','T4'].map(k=>`<span class="tier ${k}">${k} ${fmt((myComp.tier_distribution||{})[k]||0)}</span>`).join('')}</div></div>`:(v.returns&&!co?`<div class="card pad stat"><div class="kick">Returns signal</div><div class="big">${(v.returns.mean_return_rate*100).toFixed(1)}%</div><div class="mut">size-corr ${v.returns.return_rate_vs_logsize} · reported not scored</div></div>`:'')}</div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px">
+   <div class="card pad"><div class="kick">Size-neutral levers vs the raw-count trap <span class="mut" style="text-transform:none;letter-spacing:0">· portfolio</span></div><div style="margin-top:12px">
+     ${Object.entries(levers).map(([k,val])=>bar('scored · '+k,val,val<.5?'var(--pitch)':'var(--cherry)')).join('')}
+     ${Object.entries(raw).map(([k,val])=>bar('trap · '+k.replace('raw_',''),val,'rgb(var(--fg)/.3)')).join('')}</div></div>
+   <div class="card pad"><div class="kick">Per-company — the honest cut</div><div style="margin-top:12px">
+     ${Object.entries(pc).sort((a,b)=>b[1]-a[1]).map(([c,val])=>bar((c===co?'▸ ':'')+c,val,c===co?'var(--sky)':(val>.5?'var(--cherry)':val>.45?'var(--amber)':'var(--pitch)'))).join('')}</div>
+     <div class="mut" style="margin-top:10px">Lever/trap columns are portfolio-wide; the per-company cut shows where a single client's grade still leans on size.</div></div></div>`;
+}
+
+/* ---------- AGENT MODE (how to call this agent) ---------- */
+const AGENT_DESC="A CPG-OS Case-C depth agent that owns the outlet opportunity-tier truth. It grades every outlet against its structural peer + intensity frontier, sizes the unrealised headroom in ₹, and validates a supervisor's hypotheses about that truth — data-first. Every response is tagged deterministic (a rule over the data) or reasoning (an interpretation call).";
+function cb(text){return `<div class="codeblock"><button class="copybtn" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent);this.textContent='Copied ✓'">Copy</button><pre>${esc(text)}</pre></div>`}
+function renderAgent(){
+ $('#view').innerHTML=`
+  <div class="crumb"><b>Outlet Profiler</b></div>
+  <h1 class="hero">Outlet Profiler</h1>
+  <p class="lead">${AGENT_DESC}</p>
+  <div class="row" style="gap:10px;margin-bottom:4px">
+    <button class="btn btn-primary" id="toproduct">Open the product UI →</button>
+    <span class="mut">agent_id <b style="color:rgb(var(--fg)/.8)">outlet-profiler</b> · produces observation · diagnosis · opportunity · accepts diagnosis · opportunity</span>
+  </div>
+  <div class="panel">
+   <div class="row between" style="align-items:flex-start">
+    <div><div class="kick">How to call this agent</div>
+     <div class="mut" style="margin-top:5px">Same agent contract across every surface — the action name <b>grade_outlets</b> is what every caller sends.</div></div>
+    <div class="tabbar" id="agtabs">${['API','UI','MCP','CLI','A2A','Manifest'].map(t=>`<button data-t="${t}" class="${t===AG.tab?'on':''}">${t}</button>`).join('')}</div>
+   </div>
+   <div id="agbody"></div>
+  </div>`;
+ $('#toproduct').onclick=()=>{setMode('product');ST.agentMode=false;show('classify')};
+ $('#agtabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;AG.tab=b.dataset.t;
+   document.querySelectorAll('#agtabs button').forEach(x=>x.classList.toggle('on',x===b));drawAgBody()};
+ drawAgBody();
+}
+function drawAgBody(){
+ const base=location.origin,b=$('#agbody');
+ const note=t=>`<div class="mut" style="margin-top:12px;line-height:1.55">${t}</div>`;
+ if(AG.tab==='API'){
+  b.innerHTML=cb(
+`# grade outlets for a business play → Observations + ₹-sized Opportunities
+curl -X POST ${base}/v1/runs \\
+  -H "Authorization: Bearer dev-token" \\
+  -H "Idempotency-Key: $(uuidgen)" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "grade_outlets",
+    "agent_specific_payload": {
+      "company": "Anchor",
+      "mission": "launch a premium SKU in kirana",
+      "regions": ["Delhi", "BIHAR"],
+      "limit": 20
+    }
+  }'
+
+# validate a supervisor hypothesis, data-first → a confirm|refute|inconclusive
+# Diagnosis, each tagged deterministic|reasoning
+curl -X POST ${base}/v1/runs \\
+  -H "Authorization: Bearer dev-token" -H "Idempotency-Key: $(uuidgen)" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"validate_opportunity_hypothesis",
+       "agent_specific_payload":{"company":"GIL Live",
+         "hypothesis":"my T1 outlets in WEST BENGAL have gone dormant",
+         "scope":{"region":"WEST BENGAL"}}}'`)
+   +note('REST · requires an <b>Idempotency-Key</b> header (a repeat key returns the same run, never a duplicate). Then <b>GET /v1/runs/{run_id}</b> for the emitted contract objects — each carries a <b>reasoning_mode</b>.');
+ }else if(AG.tab==='UI'){
+  b.innerHTML=cb("This dashboard is the UI surface of the agent.")
+   +note('Switch to <b>Product</b> in the top bar to grade outlets, browse the runs log, re-segment, and open an outlet grade-vector. Everything the UI does maps to a <b>grade_outlets</b> / <b>validate_opportunity_hypothesis</b> run.');
+ }else if(AG.tab==='MCP'){
+  b.innerHTML=cb(
+`# list tools
+curl -X POST ${base}/mcp -H "Content-Type: application/json" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# call a tool (JSON-RPC 2.0) — Idempotency-Key required on runs
+curl -X POST ${base}/mcp -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: $(uuidgen)" \\
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
+       "params":{"name":"grade.grade_outlets",
+         "arguments":{"company":"Anchor","mission":"win back lapsing outlets"}}}'`)
+   +note('MCP at <b>'+base+'/mcp</b> (JSON-RPC: initialize, tools/list, tools/call). REST convenience: <b>GET /mcp/tools</b>, <b>POST /mcp/tools/{name}</b>.');
+ }else if(AG.tab==='CLI'){
+  b.innerHTML=cb(
+`export PROFILER_API_BASE=${base}
+python profiler_cli.py describe
+python profiler_cli.py run --action grade_outlets \\
+    --company "Anchor" --mission "launch a premium SKU"
+python profiler_cli.py run --action validate_opportunity_hypothesis \\
+    --company "GIL Live" --region "WEST BENGAL" \\
+    --hypothesis "my T1 outlets have gone dormant"
+python profiler_cli.py get <run_id>
+python profiler_cli.py smoke`)
+   +note('The CLI is purely API-backed (<b>--api</b>, <b>--token</b>); no local business logic.');
+ }else if(AG.tab==='A2A'){
+  b.innerHTML=cb(
+`# A2A JSON-RPC — an orchestrator submits a task (message/send)
+curl -X POST ${base}/a2a -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: $(uuidgen)" \\
+  -d '{"jsonrpc":"2.0","id":9,"method":"message/send",
+       "params":{"action":"grade_outlets",
+         "agent_specific_payload":{"company":"Anchor","mission":"widen distribution"}}}'
+
+# poll the task
+curl -X POST ${base}/a2a -H "Content-Type: application/json" \\
+  -d '{"jsonrpc":"2.0","id":10,"method":"tasks/get","params":{"id":"<task_id>"}}'`)
+   +note('Task states map from run status: submitted / working / completed / failed / canceled. Card at <b>'+base+'/.well-known/agent-card.json</b>.');
+ }else if(AG.tab==='Manifest'){
+  b.innerHTML=`<div class="subtabs" id="agsub">${['agent.json','agent-card.json','mcp/tools'].map(s=>`<button data-s="${s}" class="${s===AG.man?'on':''}">${s}</button>`).join('')}<span class="url" id="agurl"></span></div><div id="agman"><div class="spin">loading…</div></div>`;
+  $('#agsub').onclick=e=>{const x=e.target.closest('button');if(!x)return;AG.man=x.dataset.s;
+    document.querySelectorAll('#agsub button').forEach(y=>y.classList.toggle('on',y===x));drawMan()};
+  drawMan();
+ }
+}
+async function drawMan(){
+ const map={'agent.json':'/.well-known/agent.json','agent-card.json':'/.well-known/agent-card.json','mcp/tools':'/mcp/tools'};
+ const path=map[AG.man];$('#agurl').textContent=location.origin+path;
+ try{const r=await fetch(path);const j=await r.json();$('#agman').innerHTML=cb(JSON.stringify(j,null,2));}
+ catch(e){$('#agman').innerHTML='<div class="callout bad">could not load '+path+'</div>';}
+}
+
+/* ---------- ADD COMPANY ---------- */
+function openAddCompany(){
+ $('#ov').classList.add('show');
+ $('#mh').innerHTML='<div style="font-size:16px;font-weight:800">Add a company</div><div class="mut">Onboard a new client live from its Trino warehouse</div>';
+ AMODE='text';
+ $('#mb').innerHTML=`<div id="addform">
+   <div class="formrow"><label>Trino host</label><input class="field" id="ahost" list="hostlist" value="${esc((SUM.trino_hosts||[])[0]||'')}" placeholder="warehouse host, e.g. trino.internal:8080" style="width:100%"><datalist id="hostlist">${(SUM.trino_hosts||[]).map(h=>`<option value="${esc(h)}">`).join('')}</datalist></div>
+   <div class="formrow"><label>Company id</label><input class="field" id="acid" placeholder="e.g. 111290" style="width:100%"></div>
+   <div class="formrow"><label>Regions / geography</label>
+     <div class="row" style="gap:8px"><button class="btn btn-ghost" id="adisc" style="min-height:40px">Discover regions</button>
+       <span class="mut" id="adischint">click the regions you want — leave all unpicked to auto-pull the top&nbsp;3 by volume</span></div>
+     <div id="aregions" style="margin-top:10px"></div></div>
+   <div class="formrow"><label>Display name</label><input class="field" id="aname" placeholder="e.g. Haldiram" style="width:100%"></div>
+   <div class="formrow"><label>Segment outlets on</label>
+     <div class="row" id="amode" style="gap:6px">
+       <span class="chipbtn amode on" data-m="text">Text attributes</span>
+       <span class="chipbtn amode" data-m="image">Storefront photos</span>
+       <span class="chipbtn amode" data-m="both">Both</span></div>
+     <div class="mut" id="amodehint" style="margin-top:6px">Shop-type &amp; channel from the master data — fast, ≤6 peer groups.</div></div>
+   <button class="btn btn-primary" id="ago" style="width:100%">Onboard &amp; grade</button>
+   <div class="mut" style="margin-top:10px">Auto-detects the client data model, classifies &amp; grades the outlets, and adds the company. ~1–2 min for a text pull; photo modes take longer (a live progress view opens).</div>
+   <div id="aout" style="margin-top:12px"></div></div>`;
+ const MODEHINT={text:'Shop-type &amp; channel from the master data — fast, ≤6 peer groups.',
+   image:'We classify each outlet from its storefront photo — the photo type becomes its segment. Finer, size-neutral peers.',
+   both:'Photos where available, shop-type text otherwise — richer, up to 12 peer groups.'};
+ document.querySelectorAll('.amode').forEach(c=>c.onclick=()=>{document.querySelectorAll('.amode').forEach(x=>x.classList.remove('on'));c.classList.add('on');AMODE=c.dataset.m;$('#amodehint').innerHTML=MODEHINT[AMODE]});
+ $('#adisc').onclick=async()=>{
+   const cid=($('#acid').value||'').trim();if(!cid){$('#aregions').innerHTML='<div class="callout bad">Enter a company id first.</div>';return}
+   $('#adisc').disabled=true;$('#aregions').innerHTML='<div class="spin">discovering regions… (up to ~2 min for a large client)</div>';
+   let d;
+   try{
+     const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),150000);
+     const resp=await fetch('/api/company/regions',{method:'POST',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({host:$('#ahost').value,company_id:+cid}),signal:ctl.signal});
+     clearTimeout(to);d=await resp.json();
+   }catch(e){
+     $('#adisc').disabled=false;
+     $('#aregions').innerHTML=`<div class="callout bad"><span>⚠</span><div>Region discovery ${e.name==='AbortError'?'timed out':'failed'} — the warehouse may be slow or unreachable. Try again, or just enter the id and Onboard (it auto-pulls the top 3 regions).</div></div>`;return;
+   }
+   $('#adisc').disabled=false;
+   if(d.detail){$('#aregions').innerHTML=`<div class="callout bad"><span>⚠</span><div>${esc(d.detail)}</div></div>`;return}
+   if(!d.regions||!d.regions.length){
+     const why=d.all_time_sales===0?`No secondary sales exist for company id <b>${esc(cid)}</b> — check the id.`
+       :d.latest_sale?`This client&rsquo;s most recent secondary sale was <b>${esc(d.latest_sale)}</b> — before the analysis window (from <b>${esc(d.window||'')}</b>), so there is no recent data to grade.`
+       :'No outlets with sales in the analysis window for this company id.';
+     $('#aregions').innerHTML=`<div class="callout warn"><span>⚠</span><div>${why}</div></div>`;return;}
+   $('#aregions').innerHTML=`<div class="kick" style="margin-bottom:6px">${d.regions.length} regions — <span class="link" id="asall">select all</span> · <span class="link" id="asnone">clear</span></div>
+     <div class="row" style="gap:6px">${d.regions.map(r=>`<span class="chipbtn areg" data-r="${esc(r.name)}">${esc(r.name)} <b>${fmt(r.n)}</b></span>`).join('')}</div>
+     <div class="mut" style="margin-top:6px">only the selected regions are pulled (≤700 outlets each); none selected = top 3 by volume.</div>`;
+   document.querySelectorAll('.areg').forEach(c=>c.onclick=()=>c.classList.toggle('on'));
+   $('#asall').onclick=()=>document.querySelectorAll('.areg').forEach(c=>c.classList.add('on'));
+   $('#asnone').onclick=()=>document.querySelectorAll('.areg').forEach(c=>c.classList.remove('on'));
+ };
+ $('#ago').onclick=async()=>{
+   const cid=($('#acid').value||'').trim();if(!cid){$('#aout').innerHTML='<div class="callout bad">Enter a company id.</div>';return}
+   const chosen=[...document.querySelectorAll('.areg.on')].map(c=>c.dataset.r);
+   const nm=$('#aname').value||('Company '+cid);
+   const body={host:$('#ahost').value,company_id:+cid,name:nm,regions:chosen,mode:AMODE};
+   $('#ago').disabled=true;
+   if(AMODE!=='text'){  // async job with a live photo-classification progress view
+     const d=await post('/company/add',body);
+     if(!d.job_id){$('#ago').disabled=false;$('#aout').innerHTML=`<div class="callout bad"><span>⚠</span><div>${esc(d.detail||'could not start onboarding')}</div></div>`;return}
+     pollOnboard(d.job_id,nm);return;
+   }
+   $('#aout').innerHTML=`<div class="spin">Ingesting ${chosen.length?chosen.length+' region(s)':'top-3 regions'} — pulling and grading…</div>`;
+   const d=await post('/company/add',body);
+   $('#ago').disabled=false;
+   if(d.detail||d.ok===undefined){$('#aout').innerHTML=`<div class="callout bad"><span>⚠</span><div>${esc(d.detail||'onboarding failed')}</div></div>`;return}
+   await afterOnboard(d);
+ };
+}
+let AMODE='text';
+// refresh caches, set the onboarded company active, and open its review page
+async function afterOnboard(result){
+ SUM=await api('/summary');COMPS=(await api('/companies')).companies;REG={};COMPS.forEach(c=>REG[c.company]=c.regions);
+ ST.company=result.company;buildCoSelect();toast(result.company+' onboarded — now the active company');
+ closeM();renderOnboardReview(result);
+}
+
+/* onboarding progress view (photo-classification job) */
+const _STEPS=['pulling','typing','grading','done'];
+const _STEPLBL={pulling:'looking at outlets',typing:'reading photos',grading:'grading',done:'done'};
+async function pollOnboard(jid,name){
+ $('#ov').classList.add('show');
+ $('#mh').innerHTML=`<div><div style="font-size:16px;font-weight:800">Onboarding ${esc(name)}</div><div class="mut">pull outlets → read photos → grade</div></div>`;
+ const draw=j=>{
+   const ph=j.phase||'queued',ix=_STEPS.indexOf(ph),pct=j.pct||0;
+   const steps=_STEPS.map((s,i)=>`<span style="font-weight:${s===ph?800:600};color:${i<=ix?'rgb(var(--fg)/.9)':'rgb(var(--fg)/.35)'}">${_STEPLBL[s]}</span>`).join('<span class="mut"> → </span>');
+   const prog=ph==='typing'?`<div class="bar" style="height:14px;margin-top:14px"><i style="width:${pct}%;background:var(--pitch)"></i></div>
+     <div class="mut" style="margin-top:6px">${fmt(j.processed||0)} / ${fmt(j.total||0)} photos${j.eta_s!=null?` · ~${j.eta_s}s remaining`:''}</div>`:'';
+   $('#mb').innerHTML=`<div class="row" style="gap:4px;margin-bottom:8px">${steps}</div>
+     <div class="callout ${j.status==='failed'?'bad':j.status==='succeeded'?'ok':'info'}"><span>${j.status==='failed'?'⚠':j.status==='succeeded'?'✓':'⏳'}</span><div>${esc(j.message||'working…')}</div></div>
+     ${prog}
+     ${j.status==='failed'?`<button class="btn btn-ghost" id="onbback" style="width:100%;margin-top:12px">Back</button>`:''}`;
+   if(j.status==='failed')$('#onbback').onclick=openAddCompany;
+ };
+ const tick=async()=>{
+   const j=await api('/company/job/'+jid); draw(j);
+   if(j.status==='running'){setTimeout(tick,1000)}
+   else if(j.status==='succeeded'){await afterOnboard(j.result||{company:name})}
+ };
+ tick();
+}
+
+/* ---------- post-onboard review (what we just pulled) ---------- */
+let ST_REVIEW=null;
+async function renderOnboardReview(r){
+ ST_REVIEW=r; ST.sec='classify'; setTab(null);
+ const co=r.company, td=r.tier_distribution||{}, tot=Object.values(td).reduce((a,b)=>a+b,0)||1;
+ const modeLbl={text:'text attributes',image:'storefront photos',both:'photos + attributes'}[r.seg_mode]||r.seg_mode;
+ const stack=['T1','T2','T3','T4'].map(k=>`<span style="width:${100*(td[k]||0)/tot}%;background:${TC[k]}"></span>`).join('');
+ $('#view').innerHTML=`<h2 class="sec">Onboarded ${esc(co)}</h2>
+  <p class="lead">Pulled live from the warehouse and graded against structural peers. Segmented on <b>${esc(modeLbl)}</b>.</p>
+  <div class="card pad">
+   <div class="statgrid">
+     <div><div class="statn">${fmt(r.selling_outlets)}</div><div class="statk">selling outlets</div></div>
+     <div><div class="statn">${(r.regions||[]).length}</div><div class="statk">region(s)</div></div>
+     <div><div class="statn">${fmt(r.peers)}</div><div class="statk">peer groups</div></div>
+     <div><div class="statn">${fmt(r.images_typed||0)}</div><div class="statk">photos classified</div></div>
+   </div>
+   <div class="kick" style="margin-top:16px">Regions pulled</div>
+   <div class="row" style="gap:6px;margin-top:8px">${(r.regions||[]).map(x=>`<span class="chipbtn">${esc(x)}</span>`).join('')||'<span class="mut">—</span>'}</div>
+   <div class="kick" style="margin-top:16px">Tier split · ${fmt(tot)} outlets</div>
+   <div class="stackbar" style="margin-top:8px">${stack}</div>
+   <div class="legend">${['T1','T2','T3','T4'].map(k=>`<span><i style="background:${TC[k]}"></i>${k} ${fmt(td[k]||0)}</span>`).join('')}</div>
+   <div id="revimgs"></div>
+   <div class="row" style="gap:8px;margin-top:18px">
+     <button class="btn btn-primary" onclick="gotab('classify')">Profile ${esc(co)} →</button>
+     <button class="btn btn-ghost" onclick="gotab('segments')">Segments</button>
+     <button class="btn btn-ghost" onclick="gotab('outlets')">Browse outlets</button>
+   </div>
+  </div>`;
+ const ids=(r.sample_outlets||[]);
+ const grid=ids.length?ids:((await api('/company/images?company='+encodeURIComponent(co)+'&limit=18')).outlets||[]);
+ if(grid.length)$('#revimgs').innerHTML=`<div class="kick" style="margin-top:18px">Outlet photos we pulled</div>
+   <div class="imgrid" style="margin-top:8px">${grid.map(id=>`<a class="imcell" onclick="openOutlet(${id})"><img src="/api/outlet/${id}/image" loading="lazy" onerror="this.closest('.imcell').style.display='none'"><span>#${id}</span></a>`).join('')}</div>`;
+}
+
+/* ---------- shared outlet lightbox ---------- */
+async function openOutlet(id){
+ $('#ov').classList.add('show');$('#mb').innerHTML='<div class="spin">loading…</div>';$('#mh').innerHTML='';
+ const w=(ST.sec==='run'&&ST.weights)?ST.weights:null;
+ const [o,p]=await Promise.all([api('/outlet/'+id),post('/promote',{outletid:id,weights:w||undefined})]);
+ const fit=o.action_fit||{};
+ $('#mh').innerHTML=`<div><div style="font-size:16px;font-weight:800">Outlet #${o.outletid} ${o.has_data?tpill(o.tier):tpill(null)}</div><div class="mut">${esc(o.company_name)} · ${esc(o.regionname||'')} · ${esc(o.peer)}</div></div>`;
+ const bar=(name,real,val)=>real==null?'':`<div class="barrow"><div class="barlab"><span>${name}</span><span class="num">${val} · ${pct(real)}</span></div><div class="bar"><i style="width:${Math.min(100,real*100)}%;background:${real>=.85?'var(--pitch)':real>=.65?'var(--sky)':real>=.45?'var(--amber)':'var(--cherry)'}"></i></div></div>`;
+ const grade=q=>q>=.75?'A':q>=.5?'B':q>=.25?'C':'D';
+ const gcol=q=>q>=.75?'var(--pitch-ink)':q>=.5?'var(--sky-ink)':q>=.25?'var(--amber-ink)':'var(--cherry-ink)';
+ const gbar=q=>q>=.75?'var(--pitch)':q>=.5?'var(--sky)':q>=.25?'var(--amber)':'var(--cherry)';
+ const fitrows=o.has_data?FITS.filter(([k])=>fit[k]!=null).map(([k,lbl])=>{const q=fit[k];return `<div class="fitrow"><span>${lbl}</span><div class="bar"><i style="width:${Math.round(q*100)}%;background:${gbar(q)}"></i></div><span class="gr" style="color:${gcol(q)}">${grade(q)} · ${Math.round(q*100)}</span></div>`}).join(''):'';
+ const proj=p.projected_tier&&p.current_tier&&p.projected_tier!==p.current_tier;
+ $('#mb').innerHTML=`
+  <div class="omimg" id="omimg"><img src="/api/outlet/${o.outletid}/image" loading="lazy" onerror="var e=document.getElementById('omimg');if(e)e.style.display='none'"><span>storefront photo</span></div>
+  ${o.has_data?`<div class="kick">Grade-vector — how good this outlet is for each play <span class="mut" style="text-transform:none;letter-spacing:0">(percentile vs all outlets)</span></div>
+   <div style="margin-top:10px">${fitrows}</div>
+   <div class="mut" style="margin-top:2px">Same outlet, a different standing per play — this is why the tier depends on the mission, not a single stored grade.</div>`:''}
+  <div class="kick" style="margin-top:18px">Realisation vs peer frontier${w?` — under mission weights (${wpills(w)})`:' (default balanced weighting)'}</div><div style="margin-top:10px">
+   ${bar('Basket breadth',o.real_range_intensity,(o.range_intensity??0).toFixed(1)+' SKUs/bill')}
+   ${bar('Ordering rhythm',o.real_cadence,(o.cadence??0).toFixed(2))}
+   ${bar('Freshness',o.real_recency,fmt(o.recency)+'d')}
+   ${bar('Basket value',o.real_value,'INR '+fmt(o.basket_value))}</div>
+  <div class="kick" style="margin-top:18px">How to move up a tier</div>
+  ${o.has_data?(proj?`<div class="task" style="border-color:rgba(71,194,255,.4)"><b>${p.current_tier} → ${p.projected_tier}</b> · projected realisation ${p.projected_RI}</div>`:'<div class="mut" style="margin-top:8px">Already near the top of its peer — protect it.</div>')+((p.tasks||[]).map(x=>`<div class="task">→ ${esc(x.task)}</div>`).join('')):'<div class="mut" style="margin-top:8px">No sales history — provisional potential only.</div>'}
+  <div class="kick" style="margin-top:18px">Primitives</div>
+  <div class="kv"><div><span class="k">Bills (3mo)</span><span class="num">${fmt(o.bills)}</span></div><div><span class="k">Distinct SKUs</span><span class="num">${fmt(o.distinct_skus)}</span></div>
+   <div><span class="k">Line value INR</span><span class="num">${fmt(o.line_value)}</span></div><div><span class="k">Return rate</span><span class="num">${o.return_rate==null?'–':Math.round(o.return_rate*100)+'%'}</span></div>
+   <div><span class="k">Confidence</span><span>${esc(o.confidence)}</span></div><div><span class="k">Legacy grade</span><span>${esc(o.segmentationname||'–')}</span></div></div>`;
+}
+function closeM(){$('#ov').classList.remove('show')}
+$('#ov').onclick=e=>{if(e.target.id==='ov')closeM()};
+
+(async()=>{
+ SUM=await api('/summary');
+ COMPS=(await api('/companies')).companies||[];
+ REG={};COMPS.forEach(c=>REG[c.company]=c.regions);
+ ST.company=COMPS.length?COMPS[0].company:ALL;
+ buildCoSelect();
+ const s=(location.hash||'#classify').slice(1);
+ show(s==='run'?'classify':s);
+})();
+</script>
+</body>
+</html>

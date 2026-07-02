@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+.DS_Store
+scratchpad/
+*.zip
+
+# large / derived / ephemeral data — NOT needed to build or deploy.
+# The Dockerfile ships data/outlets_geo2.parquet + data/onboarded/ only.
+data/imgs/
+data/_active.parquet
+data/runs/
+data/agent_runs/
+data/agent.db
+data/agent.db-wal
+data/agent.db-shm
+hosts.local
+data/seg_modes.json
+data/img_overrides.parquet
+# secrets — API keys live in the environment (ANTHROPIC_API_KEY), never in the repo
+secrets.local
+.env
+.env.local

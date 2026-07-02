@@ -1,0 +1,23 @@
+# Render blueprint — deploy the Outlet Profiler as a Docker web service with a
+# persistent disk so the SQLite run store survives redeploys.
+# Render sets $PORT and RENDER_EXTERNAL_URL automatically; the manifest
+# self-describes with the public URL (see agent/identity.py).
+services:
+  - type: web
+    name: outlet-profiler
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health/ready
+    plan: starter            # persistent disks require a paid plan (free has none)
+    autoDeploy: true
+    disk:
+      name: profiler-data
+      mountPath: /var/data    # SQLite run store lives here, survives redeploy
+      sizeGB: 1
+    envVars:
+      - key: PROFILER_DB
+        value: /var/data/agent.db     # durable run store on the mounted disk
+      - key: PROFILER_REQUIRE_AUTH
+        value: "0"            # dev-token open auth for the pilot; set "1" + real tokens later
+      # set PROFILER_TRINO_HOSTS (comma-separated) to populate the onboarding
+      # host dropdown; leave unset in public/demo deployments.

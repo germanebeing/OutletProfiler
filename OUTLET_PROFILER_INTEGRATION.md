@@ -45,13 +45,13 @@
 - **Cost / rate limits:** no external cost (in-memory compute). Advertised capacity: sustained 8 rps, peak 15, ≤4 concurrent runs (= worker-pool size), p95 ~4 s; **per-tenant rate limiting is enforced** (429 on burst). `load_tested_to_rps` is `null` until a real load test runs.
 
 ## 5. Inputs and outputs
-- **Minimum input** (grade): `{ "action":"grade_outlets", "agent_specific_payload": { "company":"Anchor", "mission":"launch a premium SKU" } }` — `mission` (plain English) *or* explicit `weights` is required. Add `"regions": ["Delhi"]` to scope to specific geographies (omit = all).
+- **Minimum input** (grade): `{ "action":"grade_outlets", "agent_specific_payload": { "company":"Anchor", "mission":"improve order frequency in Delhi kirana" } }` — `mission` (plain English) *or* explicit `weights` is required. Region/format scope is inferred from the text; or add `"regions": ["Delhi"]` explicitly (omit = all). Built-in **plays** (advertised in the manifest, `grade_outlets.plays`): `premium_launch`, `volume_scheme`, `frequency` (order-cadence, targets T3/T4), `distribution`, `retention`, `reactivation`, `balanced` — and any novel phrasing is handled by the LLM lens as a `custom` play. The returned `outputs` list is ranked by opportunity (most headroom / lowest tier first for gap plays) and stratified across the actionable tiers.
 - **RunResult.outcome:** every run carries an `outcome { summary, verdict, reasoning_mode, reversible, changes[] }` envelope for measurement. The Profiler is read-only, so `changes[]` is empty — the value is in the emitted `outputs[]`.
 - **What it returns:** a run whose **outputs** are CPG-OS contract objects (`GET /v1/runs/{id}`):
   - **Observation** (`kind: outlet_opportunity_grade`) per outlet — `value.tier` (T1–T4), `value.RI` (realisation index 0–1 vs the peer frontier), the levers, and the peer. `confidence` 0–1.
   - **Opportunity** per actionable outlet — `inr_value` (₹/yr of unrealised headroom for gap plays, or incremental for launch/retention), `horizon_days`, `confidence_level`.
   - **Diagnosis** (validate action) — `verdict` ∈ `confirm | refute | inconclusive`, `summary`, `root_causes`.
-  - **Every output carries `reasoning_mode`** = `deterministic` (a rule over the data — the tier, the guard, peer-frontier realisation) or `reasoning` (an interpretation — parsing a plain-English mission/hypothesis into weights). **This is how much to trust it:** a deterministic verdict is settled by the data; a reasoning one is a judgment and usually pairs with an `inconclusive`/lower confidence.
+  - **Every output carries `reasoning_mode`** = `deterministic` or `reasoning`. The **grades themselves are always deterministic** (the tier, the guard, peer-frontier realisation — rules over the data). The mode is set by **how the plain-English mission was parsed into a grading lens** (weights + target tiers + ranking + region/format filters): `reasoning` when the optional **Claude LLM lens** interpreted it, `deterministic` when it fell back to the built-in keyword rules or when explicit `weights` were supplied. The LLM lens is active only when `ANTHROPIC_API_KEY` is configured; **without a key every run is `deterministic`.** **This is how much to trust it:** a deterministic verdict is settled by the data; a reasoning one is a lens judgment and usually pairs with lower confidence.
   - **Trust the guard:** run counters include the size-bias guard (`size_correlation`, `safe`) — the grade is validated to be decorrelated from raw size (≈0.245 pooled), so a high-tier outlet is genuinely a *good* outlet, not just a *big* one.
 - **Safe read-only smoke:** `GET /health/ready`, `GET /.well-known/agent.json`, `GET /mcp/tools`, or a `dry_run:true` run — none touch data.
 
@@ -87,8 +87,11 @@ Content-Type: application/json
   },
   "counters": {
     "tier_distribution": {"T1": 172, "T2": 555, "T3": 593, "T4": 170},
+    "tier_candidates": {"T1": 172, "T2": 499},
     "guard": {"size_correlation": 0.208, "safe": true},
-    "archetype": "premium_launch", "target_tiers": ["T1", "T2"], "regions": "all"
+    "archetype": "premium_launch", "label": "Premium / new-SKU launch",
+    "reasoning_mode": "reasoning", "ranking": "best",
+    "target_tiers": ["T1", "T2"], "regions": "all"
   },
   "outputs": [ /* Observation + Opportunity objects, below */ ]
 }

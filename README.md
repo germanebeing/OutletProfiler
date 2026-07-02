@@ -5,7 +5,7 @@
 A **CPG-OS Case-C depth agent** (`agent_id: outlet-profiler`, Operations) that owns the outlet **opportunity-tier** truth. It grades each outlet against its *structural-peer + intensity frontier*, sizes the unrealised headroom in ₹, and validates a supervisor's hypotheses about that truth — **data-first**. Every response is tagged **`deterministic`** (a rule over the data) or **`reasoning`** (an interpretation call). It's also a usable operator product (a Nuxt-free single-file UI) with an **Agent** mode.
 
 - **Who it's for:** CPG KAM / sales leaders, and the CPG-OS supervisor that routes work to it.
-- **What it replaces:** the size-biased A/B/C/D grade. An outlet is never "an A" — it's "an A *for a premium launch*" and maybe "a C *for a scheme*."
+- **What it replaces:** the size-biased A/B/C/D grade. An outlet is never "an A" — it's "an A *for a premium launch*", "a C *for a scheme*", or "the one *to lift on order frequency*." Ask in plain words (premium launch, volume scheme, order frequency, distribution, retention, reactivation, or any novel phrasing) — an optional LLM lens turns it into the grading weights, with a deterministic keyword fallback.
 - **Contract:** `contract_version: "1"`, wire-compatible with the reference CPG-OS agents. Produces `observation · diagnosis · opportunity`; accepts `diagnosis · opportunity`.
 
 ---
@@ -70,7 +70,7 @@ PYTHONPATH=.:tests python -m pytest tests -q               # 49 tests
 PYTHONPATH=.:tests python -m tests.evals.harness           # behaviour evals (gated 100%)
 ```
 
-The base graded dataset ships in `data/` — no warehouse needed to run, grade, or validate. (Onboarding a *new* company hits Trino/ClickHouse and needs warehouse access.)
+The base graded dataset ships in `data/` — no warehouse needed to run, grade, or validate. (Onboarding a *new* company hits Trino/ClickHouse and needs warehouse access.) Onboarding is an **operator/product** function, not a supervisor action: a company can be segmented on **text attributes** (shop-type & channel — capped at ≤6 peer groups), on **storefront photos** (each outlet classified from its `f2klocations` image — uncapped), or **both** (≤12); the supervisor consumes the resulting grades, not the segmentation choice.
 
 ---
 
@@ -93,7 +93,8 @@ Outputs are CPG-OS contract objects on a shared envelope (`engine/contracts.py`)
 - **Observation** — `outlet_opportunity_grade`: tier + realisation index + levers + peer.
 - **Opportunity** — `inr_value` of the unrealised headroom, `horizon_days`, `confidence_level`.
 - **Diagnosis** — a hypothesis `verdict` (confirm/refute/inconclusive) + `root_causes`.
-- Every output carries **`reasoning_mode`**: `deterministic` (the tier, the guard, peer-frontier realisation) or `reasoning` (parsing a plain-English mission/hypothesis). `signal_id` is propagated from `triggered_by` onto every output. Deterministic-by-default; interpretation is the only reasoning path.
+- Every output carries **`reasoning_mode`**. The grades are always **`deterministic`** (the tier, the guard, peer-frontier realisation). The mode reflects **how the plain-English mission was parsed into a grading lens** (weights + target tiers + ranking + region/format filters): **`reasoning`** when the optional **Claude LLM lens** (`engine/llm_parse.py`, default `claude-haiku-4-5`) interpreted it, **`deterministic`** on the built-in keyword fallback or explicit `weights`. The lens is active only when `ANTHROPIC_API_KEY` is set (env or a gitignored `secrets.local`); **without a key every run is deterministic.** `signal_id` is propagated from `triggered_by` onto every output.
+- **Plays** (`grade_outlets.plays` in the manifest): `premium_launch`, `volume_scheme`, `frequency` (order-cadence, T3/T4), `distribution`, `retention`, `reactivation`, `balanced`; a novel ask becomes a `custom` lens. The `outputs` are ranked by opportunity (headroom-first for gap plays) and stratified across the actionable tiers; run counters carry `reasoning_mode`, `ranking`, `tier_candidates`, and the size-bias `guard`.
 
 ---
 

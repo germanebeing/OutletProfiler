@@ -13,7 +13,9 @@ COPY engine ./engine
 COPY agent ./agent
 COPY api ./api
 COPY web ./web
-COPY pull_company.py profiler_cli.py ./
+COPY pull_company.py profiler_cli.py image_typing.py clip_classify.py ./
+# NB: torch/open_clip are intentionally NOT in the slim serve image, so photo-based
+# onboarding degrades cleanly to text typing on the server (works fully on a torch host).
 
 # the base graded dataset + already-onboarded companies (small parquets).
 # Grading/validation need no warehouse; only onboarding NEW companies hits Trino.

@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir -r requirements-serve.txt
 # the image off the multi-GB CUDA build. open_clip is pinned (the model API +
 # labels are tied to it); Pillow decodes the downloaded storefront photos.
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision \
- && pip install --no-cache-dir open_clip_torch==3.3.0 pillow==12.3.0
+ && pip install --no-cache-dir open_clip_torch==3.3.0 pillow==12.3.0 \
+      transformers==5.12.1 timm==1.0.27 sentencepiece==0.2.1
 
 # code
 COPY engine ./engine

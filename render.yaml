@@ -1,31 +1,18 @@
-# Render blueprint — deploy the Outlet Profiler as a Docker web service with a
-# persistent disk so the SQLite run store survives redeploys. Render sets $PORT
-# and RENDER_EXTERNAL_URL automatically; the manifest self-describes with that
-# public URL (agent/identity.py). One-click: render.com/deploy?repo=<this repo>.
+# Render blueprint — Outlet Profiler as a Docker web service.
+# Render injects $PORT and RENDER_EXTERNAL_URL; the manifest self-describes with
+# that public URL (agent/identity.py). Deploy: render.com/deploy?repo=<this repo>.
 services:
   - type: web
     name: outlet-profiler
     runtime: docker
-    dockerfilePath: ./Dockerfile
-    healthCheckPath: /health/ready
-    plan: starter            # persistent disks require a paid plan (free has none)
-    autoDeploy: true         # redeploys on every push to main
-    disk:
-      name: profiler-data
-      mountPath: /var/data    # SQLite run store lives here, survives redeploy
-      sizeGB: 1
+    plan: starter
     envVars:
-      - key: PROFILER_DB
-        value: /var/data/agent.db        # durable run store on the mounted disk
       - key: PROFILER_REQUIRE_AUTH
-        value: "0"                        # open for the pilot (supervisor can call directly)
+        value: "0"
       - key: PROFILER_WORKERS
         value: "4"
-      # onboarding host dropdown (FieldAssist Trino warehouses)
       - key: PROFILER_TRINO_HOSTS
-        value: trino.fieldassist.io,trino-slmg.fieldassist.io,trino-haldiram.fieldassist.io,trino-gulf.fieldassist.io,trino-colpal.fieldassist.io
-      # natural-language mission parsing (Claude lens). Paste the key in the Render
-      # dashboard (Environment tab). Without it, missions parse via the deterministic
-      # keyword rules — everything else still works.
+        value: "trino.fieldassist.io,trino-slmg.fieldassist.io,trino-haldiram.fieldassist.io,trino-gulf.fieldassist.io,trino-colpal.fieldassist.io"
+      # paste this in the Render dashboard (Environment tab) — enables the LLM lens
       - key: ANTHROPIC_API_KEY
         sync: false

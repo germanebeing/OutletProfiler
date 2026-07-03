@@ -7,6 +7,11 @@ ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app
 
 COPY requirements-serve.txt .
 RUN pip install --no-cache-dir -r requirements-serve.txt
+# vision deps for photo-based outlet typing (SigLIP). CPU-only torch wheel keeps
+# the image off the multi-GB CUDA build. open_clip is pinned (the model API +
+# labels are tied to it); Pillow decodes the downloaded storefront photos.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision \
+ && pip install --no-cache-dir open_clip_torch==3.3.0 pillow==12.3.0
 
 # code
 COPY engine ./engine
@@ -14,8 +19,7 @@ COPY agent ./agent
 COPY api ./api
 COPY web ./web
 COPY pull_company.py profiler_cli.py image_typing.py clip_classify.py ./
-# NB: torch/open_clip are intentionally NOT in the slim serve image, so photo-based
-# onboarding degrades cleanly to text typing on the server (works fully on a torch host).
+# SigLIP weights (~400MB) download from the open_clip hub on the first photo job.
 
 # the base graded dataset + already-onboarded companies (small parquets).
 # Grading/validation need no warehouse; only onboarding NEW companies hits Trino.

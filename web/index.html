@@ -361,16 +361,31 @@ function openRunSummary(rerun){
 
 /* ---------- RUNS (transactional log) ---------- */
 async function renderRuns(){
- $('#view').innerHTML='<h2 class="sec">Runs</h2><p class="lead">Every classification run — the record that goes back to the supervisor. Each row is one graded mission with its weights and guard result. Open one to reload it.</p><div id="rl" class="spin">loading…</div>';
- const d=await api('/runs');const rs=d.runs||[];
- if(!rs.length){$('#rl').outerHTML='<div class="card pad mut" id="rl">No runs yet — go to <span class="link" onclick="gotab(\'classify\')">Ask</span> and run a mission.</div>';return}
- $('#rl').outerHTML=`<div class="tablewrap" id="rl"><table><thead><tr><th>When</th><th>Mission</th><th>Company</th><th>Play</th><th>Weights</th><th>Guard</th><th>Targets</th><th></th></tr></thead><tbody>
-  ${rs.map(r=>{const gd=r.guard_safe===false?'<span class="tier T4">re-checks size</span>':r.guard_safe===true?'<span class="tier T1">safe</span>':'<span class="mut">–</span>';
-   return `<tr class="clk" onclick="openRun('${r.run_id}')"><td class="mut" style="white-space:nowrap">${esc((r.computed_at||'').replace('T',' ').slice(0,16))}</td>
-    <td style="max-width:280px">${esc(r.mission||'')}${r.edited?' <span class="tier prov">edited</span>':''}</td>
-    <td class="mut">${esc(r.company||'all')}</td><td><span class="tier T2">${esc(r.label||r.archetype||'')}</span></td>
-    <td>${r.weights?wmini(r.weights):'<span class="mut">–</span>'}</td>
-    <td>${gd}</td><td class="num">${fmt(r.n_candidates)}</td><td class="link">open ›</td></tr>`}).join('')}</tbody></table></div>`;
+ $('#view').innerHTML='<h2 class="sec">Runs</h2><p class="lead"><b>Your runs</b> come from Ask; <b>supervisor runs</b> arrive over the agent API (<span style="font-family:var(--font-mono)">POST /v1/runs</span>). Both are logged here.</p><div id="rl" class="spin">loading…</div>';
+ const [d,ad]=await Promise.all([api('/runs'),api('/agent-runs')]);
+ const rs=d.runs||[], ars=ad.runs||[];
+ let html=`<div class="kick" style="margin-bottom:8px">Your runs · ${rs.length}</div>`;
+ if(rs.length){
+   html+=`<div class="tablewrap" style="margin-bottom:24px"><table><thead><tr><th>When</th><th>Mission</th><th>Company</th><th>Play</th><th>Weights</th><th>Guard</th><th>Targets</th><th></th></tr></thead><tbody>
+    ${rs.map(r=>{const gd=r.guard_safe===false?'<span class="tier T4">re-checks size</span>':r.guard_safe===true?'<span class="tier T1">safe</span>':'<span class="mut">–</span>';
+     return `<tr class="clk" onclick="openRun('${r.run_id}')"><td class="mut" style="white-space:nowrap">${esc((r.computed_at||'').replace('T',' ').slice(0,16))}</td>
+      <td style="max-width:280px">${esc(r.mission||'')}${r.edited?' <span class="tier prov">edited</span>':''}</td>
+      <td class="mut">${esc(r.company||'all')}</td><td><span class="tier T2">${esc(r.label||r.archetype||'')}</span></td>
+      <td>${r.weights?wmini(r.weights):'<span class="mut">–</span>'}</td>
+      <td>${gd}</td><td class="num">${fmt(r.n_candidates)}</td><td class="link">open ›</td></tr>`}).join('')}</tbody></table></div>`;
+ } else { html+=`<div class="card pad mut" style="margin-bottom:24px">No runs from Ask yet — go to <span class="link" onclick="gotab('classify')">Ask</span>.</div>`; }
+ html+=`<div class="kick" style="margin-bottom:8px">From the supervisor · agent API · ${ars.length}</div>`;
+ if(ars.length){
+   html+=`<div class="tablewrap"><table><thead><tr><th>When</th><th>Action</th><th>Company</th><th>Play</th><th>Mode</th><th>Status</th><th>Outputs</th></tr></thead><tbody>
+    ${ars.map(r=>`<tr><td class="mut" style="white-space:nowrap">${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${esc(r.action||'')}</td>
+      <td class="mut">${esc(r.company||'all')}</td>
+      <td>${r.label?`<span class="tier T2">${esc(r.label)}</span>`:'<span class="mut">–</span>'}</td>
+      <td>${r.reasoning_mode?`<span class="tier ${r.reasoning_mode==='reasoning'?'prov':'T1'}">${esc(r.reasoning_mode)}</span>`:'<span class="mut">–</span>'}</td>
+      <td>${r.status==='succeeded'?'<span class="tier T1">succeeded</span>':r.status==='failed'?'<span class="tier T4">failed</span>':`<span class="mut">${esc(r.status||'')}</span>`}</td>
+      <td class="num">${fmt(r.n_outputs)}</td></tr>`).join('')}</tbody></table></div>`;
+ } else { html+=`<div class="card pad mut">No supervisor runs yet. When the supervisor calls <span style="font-family:var(--font-mono)">POST /v1/runs</span>, they show up here.</div>`; }
+ $('#rl').outerHTML=`<div id="rl">${html}</div>`;
 }
 async function openRun(id){const r=await api('/run/'+id);ST.run=r;ST.text=r.mission;ST.weights={...r.weights};ST.proposed={...r.weights};ST.reasons=r.adjust_reasons||{};ST.prevTiers=null;ST.rf={region:'',tier:'',format:''};
  renderRunView();}

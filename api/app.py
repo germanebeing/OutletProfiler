@@ -26,13 +26,29 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from engine import actions, mission, segment  # noqa: E402
 
-RUNS = ROOT / "data" / "runs"
+# Writable state (onboarded companies, product runs, cached photos, active frame)
+# lives under PROFILER_DATA_DIR — point this at a mounted disk in production so it
+# survives redeploys; defaults to the repo's data/ for local dev.
+DATA_DIR = Path(os.environ.get("PROFILER_DATA_DIR", str(ROOT / "data")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+RUNS = DATA_DIR / "runs"
 RUNS.mkdir(exist_ok=True)
-ONBOARD = ROOT / "data" / "onboarded"
+ONBOARD = DATA_DIR / "onboarded"
 ONBOARD.mkdir(exist_ok=True)
-ACTIVE = ROOT / "data" / "_active.parquet"
-IMG_DIR = ROOT / "data" / "imgs"
+ACTIVE = DATA_DIR / "_active.parquet"
+IMG_DIR = DATA_DIR / "imgs"
 IMG_TYPE_CAP = int(os.environ.get("PROFILER_IMAGE_TYPE_CAP", "2000"))  # bound typing work
+
+# seed the shipped onboarded companies (baked into the image at data/onboarded)
+# into the persistent dir on first boot, so the demo companies are present but
+# freshly-onboarded ones persist alongside them.
+_SEED = ROOT / "data" / "onboarded"
+if _SEED.exists() and _SEED.resolve() != ONBOARD.resolve():
+    import shutil
+    for _p in _SEED.glob("*.parquet"):
+        _dst = ONBOARD / _p.name
+        if not _dst.exists():
+            shutil.copy2(_p, _dst)
 
 DATA = next((p for p in (ROOT / "data" / "outlets_geo2.parquet", ROOT / "data" / "outlets_geo.parquet",
                          ROOT / "data" / "outlets_all.parquet",
@@ -58,8 +74,8 @@ def _trino_hosts() -> list[str]:
 app = FastAPI(title="Outlet Profiler", version="1.0")
 
 
-SEG_MODES = ROOT / "data" / "seg_modes.json"        # {company_name: text|image|both}
-IMG_OVERRIDES = ROOT / "data" / "img_overrides.parquet"  # outletid -> image format (base cos)
+SEG_MODES = DATA_DIR / "seg_modes.json"        # {company_name: text|image|both}
+IMG_OVERRIDES = DATA_DIR / "img_overrides.parquet"  # outletid -> image format (base cos)
 
 
 def _seg_mode_overrides() -> dict:
@@ -634,6 +650,29 @@ def runs() -> dict:
         except Exception:
             pass
     return {"runs": out[-30:][::-1]}
+
+
+@app.get("/api/agent-runs")
+def agent_runs(limit: int = 30) -> dict:
+    """The supervisor's runs (agent /v1/runs), so the operator can see contract
+    calls in the UI — they live in the separate agent SQLite store, not data/runs."""
+    try:
+        from agent import store as agent_store
+        rows = agent_store.list_runs(limit=limit)  # all tenants, newest first
+    except Exception as e:  # noqa: BLE001
+        return {"runs": [], "error": str(e)[:150]}
+    out = []
+    for r in rows:
+        c = r.get("counters") or {}
+        out.append({
+            "run_id": r.get("id"), "action": r.get("action"), "status": r.get("status"),
+            "created_at": r.get("created_at"), "tenant": r.get("tenant_id"),
+            "company": c.get("company"), "label": c.get("label"),
+            "reasoning_mode": c.get("reasoning_mode"),
+            "n_outputs": len(r.get("outputs") or []),
+            "summary": (r.get("outcome") or {}).get("summary") or r.get("summary"),
+        })
+    return {"runs": out}
 
 
 @app.get("/api/coldstart")

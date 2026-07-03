@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Callable
 
 ROOT = Path(__file__).resolve().parent
-IMG_DIR = ROOT / "data" / "imgs"
+# same persistent location the API serves photos from (PROFILER_DATA_DIR)
+IMG_DIR = Path(os.environ.get("PROFILER_DATA_DIR", str(ROOT / "data"))) / "imgs"
 _MODEL = None
 _THUMB_MAX = 384        # cached thumbnail long edge — plenty for SigLIP (224) + display
 _DL_WORKERS = 16

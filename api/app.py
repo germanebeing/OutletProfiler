@@ -710,6 +710,16 @@ def health_vision(warm: bool = False) -> dict:
     return out
 
 
+@app.get("/api/agent-run/{run_id}")
+def agent_run_detail(run_id: str) -> dict:
+    """Full detail of a supervisor (agent) run — powers the deep-linkable run view."""
+    from agent import store as agent_store
+    run = agent_store.get_run(run_id)
+    if not run:
+        raise HTTPException(404, "run not found")
+    return agent_store.detail(run)
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(WEB / "index.html")
@@ -726,3 +736,16 @@ mount_agent(app, store)
 
 if (WEB / "static").exists():
     app.mount("/static", StaticFiles(directory=str(WEB / "static")), name="static")
+
+
+# SPA fallback — serve the single-file UI for any non-API path (e.g. /runs/{id}),
+# so a fresh navigation or deep link loads the app instead of 404ing. Registered
+# last, and guards the API / agent / asset prefixes so it never shadows them.
+_API_PREFIXES = ("api", "v1", "mcp", "a2a", ".well-known", "health", "readyz", "healthz", "static")
+
+
+@app.get("/{full_path:path}")
+def spa_fallback(full_path: str) -> FileResponse:
+    if full_path.startswith(_API_PREFIXES):
+        raise HTTPException(404, "not found")
+    return FileResponse(WEB / "index.html")

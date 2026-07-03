@@ -377,7 +377,7 @@ async function renderRuns(){
  html+=`<div class="kick" style="margin-bottom:8px">From the supervisor · agent API · ${ars.length}</div>`;
  if(ars.length){
    html+=`<div class="tablewrap"><table><thead><tr><th>When</th><th>Action</th><th>Company</th><th>Play</th><th>Mode</th><th>Status</th><th>Outputs</th></tr></thead><tbody>
-    ${ars.map(r=>`<tr><td class="mut" style="white-space:nowrap">${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
+    ${ars.map(r=>`<tr class="clk" onclick="deepLink('${r.run_id}')"><td class="mut" style="white-space:nowrap">${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
       <td style="font-family:var(--font-mono);font-size:12px">${esc(r.action||'')}</td>
       <td class="mut">${esc(r.company||'all')}</td>
       <td>${r.label?`<span class="tier T2">${esc(r.label)}</span>`:'<span class="mut">–</span>'}</td>
@@ -389,6 +389,31 @@ async function renderRuns(){
 }
 async function openRun(id){const r=await api('/run/'+id);ST.run=r;ST.text=r.mission;ST.weights={...r.weights};ST.proposed={...r.weights};ST.reasons=r.adjust_reasons||{};ST.prevTiers=null;ST.rf={region:'',tier:'',format:''};
  renderRunView();}
+
+/* deep-linkable supervisor (agent) run — /runs/{id} */
+function deepLink(id){if(location.pathname!=='/runs/'+id)history.pushState({},'', '/runs/'+id);openDeepRun(id);}
+async function openDeepRun(id){
+ ST.sec='runs';setTab('runs');$('#view').innerHTML='<div class="spin">loading run…</div>';
+ let d;try{d=await api('/agent-run/'+encodeURIComponent(id))}catch(e){d={detail:'unreachable'}}
+ if(!d||d.detail){$('#view').innerHTML=`<div class="link mut" onclick="gotab('runs')">‹ Runs</div><div class="card pad mut" style="margin-top:10px">Run <b>${esc(id)}</b> not found — it may be a product (Ask) run, or the store was reset.</div>`;return}
+ renderAgentRunDetail(d);
+}
+function renderAgentRunDetail(d){
+ ST.sec='runs';setTab('runs');
+ const outs=d.outputs||[],opps=outs.filter(o=>o.type==='opportunity'),nobs=outs.filter(o=>o.type==='observation').length,c=d.counters||{};
+ $('#view').innerHTML=`<div class="link mut" onclick="gotab('runs')">‹ Runs</div>
+  <h2 class="sec">Supervisor run</h2>
+  <div class="mut" style="font-family:var(--font-mono);font-size:12px;margin-bottom:10px">${esc(d.run_id||'')} · ${esc(d.action||'')}</div>
+  <div class="row" style="gap:8px;margin-bottom:12px">
+    <span class="tier ${d.status==='succeeded'?'T1':d.status==='failed'?'T4':'T2'}">${esc(d.status||'')}</span>
+    ${c.label?`<span class="tier T2">${esc(c.label)}</span>`:''}
+    ${c.reasoning_mode?`<span class="tier ${c.reasoning_mode==='reasoning'?'prov':'T1'}">${esc(c.reasoning_mode)}</span>`:''}
+    ${c.company?`<span class="mut">${esc(c.company)}${c.regions&&c.regions!=='all'?' · '+esc(Array.isArray(c.regions)?c.regions.join(', '):c.regions):''}</span>`:''}</div>
+  ${d.summary?`<div class="callout info" style="margin-bottom:14px"><span>➜</span><div>${esc(d.summary)}</div></div>`:''}
+  <div class="kick">Opportunities · ${opps.length}<span class="mut" style="text-transform:none;letter-spacing:0"> (+ ${nobs} observations)</span></div>
+  <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>Outlet</th><th>Region</th><th>₹/yr</th><th>Horizon</th><th>What to do</th></tr></thead><tbody>
+   ${opps.map(o=>{const e=o.entity_refs||{};return `<tr class="clk" onclick='openOutlet(${(e.outlet_id||"0")})'><td class="oid">#${esc(e.outlet_id||'')}</td><td class="mut">${esc(e.region||'')}</td><td class="num">₹${fmt(o.inr_value)}</td><td class="num">${fmt(o.horizon_days)}d</td><td class="mut" style="max-width:420px">${esc(o.summary||'')}</td></tr>`}).join('')||'<tr><td colspan="5" class="mut" style="padding:18px;text-align:center">No opportunities in this run.</td></tr>'}</tbody></table></div>`;
+}
 
 /* ---------- SEGMENTS ---------- */
 let SEGPREV=null;
@@ -858,9 +883,17 @@ $('#ov').onclick=e=>{if(e.target.id==='ov')closeM()};
  REG={};COMPS.forEach(c=>REG[c.company]=c.regions);
  ST.company=COMPS.length?COMPS[0].company:ALL;
  buildCoSelect();
+ route();
+})();
+// path-based routing so deep links (/runs/{id}, /runs) work on a fresh navigation
+function route(){
+ const m=location.pathname.match(/^\/runs\/(.+)$/);
+ if(m){openDeepRun(decodeURIComponent(m[1]));return}
+ if(location.pathname.replace(/\/$/,'')==='/runs'){show('runs');return}
  const s=(location.hash||'#classify').slice(1);
  show(s==='run'?'classify':s);
-})();
+}
+window.addEventListener('popstate',route);
 </script>
 </body>
 </html>

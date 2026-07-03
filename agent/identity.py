@@ -33,7 +33,9 @@ REASONING_MODES = ["deterministic", "reasoning"]
 PUBLIC_API_URL = (os.environ.get("PROFILER_API_URL")
                   or os.environ.get("RENDER_EXTERNAL_URL")
                   or "http://localhost:8100")
-PUBLIC_UI_URL = os.environ.get("PROFILER_UI_URL", "http://localhost:8100")
+# the operator UI is served on the same host as the API (FastAPI serves `/`), so
+# default it to the API URL rather than localhost — keeps the deployed manifest right.
+PUBLIC_UI_URL = os.environ.get("PROFILER_UI_URL") or PUBLIC_API_URL
 PUBLIC_MCP_URL = PUBLIC_API_URL.rstrip("/") + "/mcp"
 PUBLIC_A2A_URL = PUBLIC_API_URL.rstrip("/") + "/a2a"
 CLI_NAME = "profiler"

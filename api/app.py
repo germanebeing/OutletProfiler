@@ -652,6 +652,25 @@ def health() -> JSONResponse:
     return JSONResponse({"ok": STORE is not None})
 
 
+@app.get("/api/health/vision")
+def health_vision(warm: bool = False) -> dict:
+    """Is the storefront-photo (SigLIP) stack ready? `available` = torch+open_clip
+    installed; `loaded` = the model is in memory (lazy — set on the first photo
+    job). Call with ?warm=1 to force-load it now and time it."""
+    import image_typing
+    avail = image_typing.available()
+    out = {"available": avail, "loaded": image_typing.loaded() if avail else False,
+           "cached_images": len(list(IMG_DIR.glob("*.jpg"))) if IMG_DIR.exists() else 0}
+    if warm and avail and not out["loaded"]:
+        t = time.time()
+        try:
+            image_typing._model()          # downloads (first time) + loads into memory
+            out.update(loaded=True, warmed=True, load_seconds=round(time.time() - t, 1))
+        except Exception as e:  # noqa: BLE001
+            out.update(warmed=False, error=str(e)[:200])
+    return out
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(WEB / "index.html")

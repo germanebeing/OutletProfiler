@@ -30,6 +30,12 @@ def available() -> bool:
     return bool(u.find_spec("torch")) and bool(u.find_spec("open_clip"))
 
 
+def loaded() -> bool:
+    """True once the SigLIP model has actually been loaded into memory (lazy —
+    happens on the first photo job or an explicit warm)."""
+    return _MODEL is not None
+
+
 def _model():
     global _MODEL
     if _MODEL is None:

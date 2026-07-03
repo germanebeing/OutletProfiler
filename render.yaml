@@ -1,18 +1,33 @@
-# Render blueprint — Outlet Profiler as a Docker web service.
+# Render blueprint — Outlet Profiler as a Docker web service with a persistent
+# disk (SQLite run store survives redeploys). Requires a paid instance (starter+).
 # Render injects $PORT and RENDER_EXTERNAL_URL; the manifest self-describes with
 # that public URL (agent/identity.py). Deploy: render.com/deploy?repo=<this repo>.
 services:
   - type: web
     name: outlet-profiler
     runtime: docker
-    plan: starter
+    plan: starter            # paid instance — required for the disk below
+    autoDeploy: true         # redeploys on every push to main
+    healthCheckPath: /health/ready
+    disk:
+      name: profiler-data
+      mountPath: /var/data    # durable SQLite run store, survives redeploy
+      sizeGB: 1
     envVars:
+      - key: PROFILER_DB
+        value: /var/data/agent.db          # run store on the mounted disk
       - key: PROFILER_REQUIRE_AUTH
-        value: "0"
+        value: "0"                          # open for the pilot (supervisor calls directly)
       - key: PROFILER_WORKERS
         value: "4"
+      # onboarding host dropdown (FieldAssist Trino warehouses)
       - key: PROFILER_TRINO_HOSTS
         value: "trino.fieldassist.io,trino-slmg.fieldassist.io,trino-haldiram.fieldassist.io,trino-gulf.fieldassist.io,trino-colpal.fieldassist.io"
-      # paste this in the Render dashboard (Environment tab) — enables the LLM lens
+      # LLM lens (natural-language missions). Model is set here; the KEY is pasted
+      # in the Render dashboard (Environment tab) — it must NOT live in the public
+      # repo or GitHub/Anthropic auto-revoke it. Without a key, missions fall back
+      # to deterministic keyword parsing.
+      - key: PROFILER_LLM_MODEL
+        value: "claude-haiku-4-5-20251001"
       - key: ANTHROPIC_API_KEY
         sync: false
